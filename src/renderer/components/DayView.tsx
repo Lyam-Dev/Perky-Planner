@@ -282,13 +282,13 @@ export function DayView({
                 style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }}
               >
                 <div className="relative border-t-2 border-red-500">
-                  <span className="absolute -left-1 -top-[5px] h-2.5 w-2.5 rounded-full bg-red-500" />
+                  <span className="absolute -left-1 -top-[5px] h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse-soft" />
                 </div>
               </div>
             )}
 
             {/* Positioned timed events, sized by duration */}
-            {positioned.map(({ event, top, height, lane, lanes, duration }) => {
+            {positioned.map(({ event, top, height, lane, lanes, duration }, i) => {
               const widthPct = 100 / lanes
               return (
                 <button
@@ -296,7 +296,7 @@ export function DayView({
                   type="button"
                   onClick={() => onEditEvent(event.id)}
                   title={describeEvent(event)}
-                  className="absolute overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left shadow-sm transition-shadow hover:z-10 hover:shadow-md"
+                  className="absolute origin-left overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left shadow-sm animate-grow-block transition-shadow hover:z-10 hover:shadow-md"
                   style={{
                     top,
                     height,
@@ -304,7 +304,8 @@ export function DayView({
                     width: `calc(${widthPct}% - 8px)`,
                     backgroundColor: `${event.color}14`,
                     borderLeftColor: event.color,
-                    color: event.color
+                    color: event.color,
+                    animationDelay: `${i * 60}ms`
                   }}
                 >
                   <p className="truncate text-xs font-semibold leading-tight">

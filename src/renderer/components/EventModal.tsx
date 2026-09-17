@@ -136,7 +136,7 @@ export function EventModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal-in"
+        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
