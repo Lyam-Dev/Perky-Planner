@@ -159,30 +159,30 @@ export function EventModal({
 
         {/* Body */}
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div>
+          <div className="animate-slide-up" style={{ animationDelay: '40ms' }}>
             <label className="mb-1 block text-xs font-medium text-slate-600">Title</label>
             <input
               autoFocus
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               placeholder="Event title"
-              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.08)]"
             />
           </div>
 
-          <div>
+          <div className="animate-slide-up" style={{ animationDelay: '90ms' }}>
             <label className="mb-1 block text-xs font-medium text-slate-600">Description</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="Notes, agenda, location…"
               rows={3}
-              className="w-full resize-none rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="w-full resize-none rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.08)]"
             />
           </div>
 
           {/* All-day toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-surface-border px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg border border-surface-border px-3 py-2 animate-slide-up" style={{ animationDelay: '140ms' }}>
             <span className="flex items-center gap-2 text-sm text-slate-700">
               <ClockIcon className="text-slate-400" />
               All-day event
@@ -210,16 +210,16 @@ export function EventModal({
             </button>
           </div>
 
-          {/* Time range */}
+          {/* Time range — springs open when the all-day toggle flips off */}
           {!form.allDay && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 animate-expand-in">
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Start</label>
                 <input
                   type="time"
                   value={form.startTime}
                   onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
-                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
               <div>
@@ -228,34 +228,37 @@ export function EventModal({
                   type="time"
                   value={form.endTime}
                   onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
-                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
             </div>
           )}
 
           {/* Category / color */}
-          <div>
+          <div className="animate-slide-up" style={{ animationDelay: '190ms' }}>
             <label className="mb-1.5 block text-xs font-medium text-slate-600">Category</label>
             <div className="flex flex-wrap gap-2">
-              {CATEGORY_PRESETS.map((preset) => {
+              {CATEGORY_PRESETS.map((preset, i) => {
                 const active = form.category === preset.value
                 return (
                   <button
                     key={preset.value}
                     type="button"
                     onClick={() => handleCategory(preset.value, preset.color)}
+                    style={{
+                      animationDelay: `${190 + i * 50}ms`,
+                      ...(active ? { backgroundColor: preset.color } : {})
+                    }}
                     className={[
-                      'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all',
+                      'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium animate-chip-in transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95',
                       active
-                        ? 'border-transparent text-white shadow-sm'
+                        ? 'border-transparent text-white shadow-sm scale-105'
                         : 'border-surface-border text-slate-600 hover:bg-surface-muted'
                     ].join(' ')}
-                    style={active ? { backgroundColor: preset.color } : undefined}
                   >
                     <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: active ? '#ffffff' : preset.color }}
+                      className="h-2 w-2 rounded-full transition-transform duration-200"
+                      style={{ backgroundColor: active ? '#ffffff' : preset.color, transform: active ? 'scale(1.25)' : undefined }}
                     />
                     {preset.label}
                   </button>
@@ -265,7 +268,7 @@ export function EventModal({
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600 animate-shake">
               {error}
             </p>
           )}
@@ -277,16 +280,17 @@ export function EventModal({
                 On this day
               </p>
               <ul className="space-y-1.5">
-                {dayEvents.map((ev) => (
+                {dayEvents.map((ev, i) => (
                   <li
                     key={ev.id}
-                    className="flex items-start justify-between gap-2 rounded-lg bg-surface-muted px-3 py-2"
+                    style={{ animationDelay: `${i * 45}ms` }}
+                    className="group flex animate-slide-up items-start justify-between gap-2 rounded-lg bg-surface-muted px-3 py-2 transition-colors hover:bg-brand-50/70"
                   >
                     <button
                       type="button"
                       onClick={() => onEdit(ev.id)}
                       title="Click to edit this event"
-                      className="flex min-w-0 flex-1 items-start gap-2 rounded text-left transition-colors hover:opacity-80"
+                      className="flex min-w-0 flex-1 items-start gap-2 rounded text-left transition-transform duration-150 hover:translate-x-0.5"
                     >
                       <span
                         className="mt-1 h-2 w-2 flex-shrink-0 rounded-full"
@@ -326,7 +330,7 @@ export function EventModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-surface-muted"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 hover:bg-surface-muted active:scale-95"
           >
             Cancel
           </button>

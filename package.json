@@ -1,6 +1,6 @@
 {
   "name": "perky-planner",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Perky Planner — a cross-platform desktop calendar with events and daily tasks",
   "main": "./out/main/index.js",
   "author": "Lyam-Dev",

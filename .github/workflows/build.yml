@@ -30,15 +30,26 @@ jobs:
           cache: npm
 
       # Linux runners need these libs for Electron headless checks and
-      # for compiling better-sqlite3.
+      # for compiling better-sqlite3. Ubuntu 24.04 (noble) renamed several
+      # libraries with a "-t64" suffix, so fall back per-package.
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
+          renamable=""
+          for pkg in libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libasound2; do
+            if apt-cache show "$pkg" > /dev/null 2>&1; then
+              renamable="$renamable $pkg"
+            elif apt-cache show "$pkg-t64" > /dev/null 2>&1; then
+              echo "Using $pkg-t64 (t64 transition for $pkg)"
+              renamable="$renamable $pkg-t64"
+            else
+              echo "::warning::Neither $pkg nor $pkg-t64 is available"
+            fi
+          done
           sudo apt-get install -y --no-install-recommends \
             build-essential python3 pkg-config \
-            libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 \
-            libxss1 libasound2 libgbm1 libxrandr2 libu2f-udev
+            libnss3 libxss1 libgbm1 libxrandr2 libu2f-udev $renamable
 
       - name: Install dependencies
         run: npm install

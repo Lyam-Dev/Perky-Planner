@@ -29,9 +29,8 @@ mac:
     - dmg
     - zip
   entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+  # CI has no signing certificate; skip codesigning + notarization entirely.
+  identity: null
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
@@ -47,7 +46,7 @@ linux:
     Name: Perky Planner
     Comment: Cross-platform calendar with events and daily tasks
     StartupWMClass: perky-planner
-AppImage:
+appImage:
   artifactName: ${name}-${version}.${ext}
 deb:
   artifactName: ${name}-${version}.${ext}
