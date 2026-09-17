@@ -10,6 +10,9 @@ on:
 
 jobs:
   build:
+    # Required for softprops/action-gh-release to create releases and upload assets.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -31,25 +34,28 @@ jobs:
 
       # Linux runners need these libs for Electron headless checks and
       # for compiling better-sqlite3. Ubuntu 24.04 (noble) renamed several
-      # libraries with a "-t64" suffix, so fall back per-package.
+      # libraries with a "-t64" suffix (libasound2 -> libasound2t64, etc.)
+      # and apt refuses the old names even as virtual packages, so we try
+      # each base name first and fall back to the t64 variant on failure.
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          renamable=""
-          for pkg in libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libasound2; do
-            if apt-cache show "$pkg" > /dev/null 2>&1; then
-              renamable="$renamable $pkg"
-            elif apt-cache show "$pkg-t64" > /dev/null 2>&1; then
-              echo "Using $pkg-t64 (t64 transition for $pkg)"
-              renamable="$renamable $pkg-t64"
+          install_pkg () {
+            if sudo apt-get install -y --no-install-recommends "$1"; then
+              return 0
+            elif sudo apt-get install -y --no-install-recommends "$1-t64"; then
+              echo "Installed $1-t64 (t64 transition for $1)"
             else
-              echo "::warning::Neither $pkg nor $pkg-t64 is available"
+              echo "::warning::Neither $1 nor $1-t64 could be installed"
             fi
+          }
+          for pkg in libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libasound2 \
+                     libnss3 libgbm1 libxss1 libxrandr2; do
+            install_pkg "$pkg"
           done
           sudo apt-get install -y --no-install-recommends \
-            build-essential python3 pkg-config \
-            libnss3 libxss1 libgbm1 libxrandr2 libu2f-udev $renamable
+            build-essential python3 pkg-config libu2f-udev
 
       - name: Install dependencies
         run: npm install
@@ -61,7 +67,9 @@ jobs:
         run: npm run build
 
       - name: Package (${{ matrix.platform }})
-        run: npx electron-builder --${{ matrix.platform }}
+        # --publish never: electron-builder must not attempt a GH release;
+        # the dedicated step below attaches the artifacts instead.
+        run: npx electron-builder --${{ matrix.platform }} --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

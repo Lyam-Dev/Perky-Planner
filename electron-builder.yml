@@ -52,4 +52,7 @@ deb:
   artifactName: ${name}-${version}.${ext}
 rpm:
   artifactName: ${name}-${version}.${ext}
+# electron-builder's auto-publish requires GH_TOKEN; releases are instead
+# attached by the dedicated softprops/action-gh-release step in CI.
+publish: null
 npmRebuild: true
