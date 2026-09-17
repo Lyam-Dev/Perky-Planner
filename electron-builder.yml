@@ -1,0 +1,56 @@
+appId: com.perkyplanner.app
+productName: Perky Planner
+directories:
+  buildResources: build
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!.github/*'
+asarUnpack:
+  - resources/**
+  - '**/node_modules/better-sqlite3/**'
+win:
+  executableName: perky-planner
+  target:
+    - nsis
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  category: Utility
+  maintainer: Lyam-Dev
+  icon: build/icon.png
+  target:
+    - AppImage
+    - deb
+    - rpm
+  desktop:
+    Name: Perky Planner
+    Comment: Cross-platform calendar with events and daily tasks
+    StartupWMClass: perky-planner
+AppImage:
+  artifactName: ${name}-${version}.${ext}
+deb:
+  artifactName: ${name}-${version}.${ext}
+rpm:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: true
