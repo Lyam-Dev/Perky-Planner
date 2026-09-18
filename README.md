@@ -130,6 +130,25 @@ npm run dev          # launch the app with hot reload
 
 Packaged installers are written to `dist/`.
 
+### Custom app icon
+
+The icon ships from a single 1024×1024 source file:
+
+1. Replace `build/icon-source.png` with your own artwork
+   (square PNG, at least 1024×1024, transparent background recommended).
+2. Run `npm run icons` — this regenerates everything from that source:
+   - `build/icons/mac/icon.icns` (macOS dock / Finder / DMG)
+   - `build/icons/win/icon.ico` (Windows installer, taskbar, shortcuts)
+   - `build/icons/png/*.png` (Linux AppImage/deb/rpm hicolor set)
+   - `resources/icon.png` (Linux dev-window/taskbar runtime icon)
+3. Re-run `npm run build` + the platform packager
+   (`build:mac` / `build:win` / `build:linux`) and confirm your artwork
+   shows in the dock/taskbar before committing.
+
+The paths are wired in `electron-builder.yml` (`mac.icon`, `win.icon`,
+`linux.icon`) and `src/main/index.ts` (`windowIcon()` returns the
+`resources/icon.png` runtime icon on Linux only).
+
 ### Requirements
 
 - Node.js 18+
