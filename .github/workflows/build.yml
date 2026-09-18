@@ -11,9 +11,6 @@ on:
 
 jobs:
   build:
-    # Required for softprops/action-gh-release to create releases and upload assets.
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -85,19 +82,31 @@ jobs:
             dist/*.rpm
           if-no-files-found: error
 
+  # Runs once after every build job finishes, so the GitHub release is created
+  # and updated from a single place (parallel build jobs used to race on it).
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
       # Re-creating a tag (delete + push again) leaves the old release behind
       # with stale assets. Remove any release matching this tag first so the
       # step below builds a fresh one with the correct files.
       - name: Remove stale release for this tag
-        if: startsWith(github.ref, 'refs/tags/')
-        # bash on every OS — Windows runners default to pwsh, which cannot
-        # execute this POSIX-style script.
-        shell: bash
         run: |
-          TOKEN="${{ github.token }}"
           REPO="${{ github.repository }}"
           TAG="${{ github.ref_name }}"
-          IDS=$(curl -s -H "Authorization: Bearer $TOKEN" \
+          IDS=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/$REPO/releases?per_page=100" \
             | jq -r ".[] | select(.tag_name == \"$TAG\" or (.draft and .name == \"$TAG\")) | .id")
           if [ -z "$IDS" ]; then
@@ -105,13 +114,11 @@ jobs:
           fi
           for id in $IDS; do
             echo "Deleting stale release $id for tag $TAG"
-            curl -s -X DELETE -H "Authorization: Bearer $TOKEN" \
+            curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
               "https://api.github.com/repos/$REPO/releases/$id"
           done
 
-      # Attach everything to the GitHub Release for any pushed tag.
       - name: Attach binaries to release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}

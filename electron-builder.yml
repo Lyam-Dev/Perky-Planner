@@ -16,6 +16,7 @@ asarUnpack:
   - '**/node_modules/better-sqlite3/**'
 win:
   executableName: perky-planner
+  icon: build/icons/win/icon.ico
   target:
     - nsis
 nsis:
@@ -25,6 +26,7 @@ nsis:
   createDesktopShortcut: always
 mac:
   category: public.app-category.productivity
+  icon: build/icons/mac/icon.icns
   target:
     - dmg
     - zip
@@ -37,7 +39,7 @@ dmg:
 linux:
   category: Utility
   maintainer: Lyam-Dev
-  icon: build/icon.png
+  icon: build/icons/png
   target:
     - AppImage
     - deb
