@@ -62,3 +62,118 @@ Perky Planner is designed to simplify schedule management while providing powerf
 4. Open Terminal and run the following command to clear the quarantine attribute:
    ```bash
    xattr -c /Applications/Perky\ Planner.app
+   ```
+5. Launch Perky Planner from your Applications folder or Spotlight.
+
+### Linux
+1. Download the `.AppImage` from the latest release.
+2. Make the file executable:
+   ```bash
+   chmod +x Perky-Planner-*.AppImage
+   ```
+3. Run the application:
+   ```bash
+   ./Perky-Planner-*.AppImage
+   ```
+
+---
+
+## Getting Started
+
+### Requirements
+* Node.js 18 or later
+* npm
+* C++ toolchain for native modules (`better-sqlite3`):
+  * **macOS:** Xcode Command Line Tools (`xcode-select --install`)
+  * **Windows:** Visual Studio Build Tools
+  * **Linux:** `build-essential`, `python3`, `libnss3`, `libatk1.0-0`, `libgtk-3-0`
+
+### Development
+```bash
+git clone https://github.com/YOUR_USERNAME/PerkyPlanner.git
+cd PerkyPlanner
+
+npm install
+npm run dev
+```
+
+### Building
+```bash
+# Compile main, preload, and renderer processes
+npm run build
+
+# Build for specific platforms
+npm run build:mac     # Package macOS .dmg and .zip
+npm run build:win     # Package Windows NSIS installer
+npm run build:linux   # Package Linux AppImage, deb, and rpm
+npm run build:all     # Build for all supported platforms
+```
+
+Build artifacts are generated in the `dist/` directory.
+
+### Releasing
+Create and push a semantic version tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The release workflow will automatically build supported platform packages and publish them to GitHub Releases.
+
+---
+
+## Project Structure
+
+```
+PerkyPlanner/
+├── src/
+│   ├── main/
+│   │   ├── index.ts
+│   │   ├── db.ts
+│   │   └── ipc.ts
+│   ├── preload/
+│   │   ├── index.ts
+│   │   └── index.d.ts
+│   ├── shared/
+│   │   └── types.ts
+│   └── renderer/
+│       ├── index.html
+│       ├── main.tsx
+│       ├── App.tsx
+│       ├── index.css
+│       ├── lib/
+│       │   └── dateEngine.ts
+│       ├── hooks/
+│       └── components/
+├── build/
+│   └── entitlements.mac.plist
+├── electron.vite.config.ts
+├── electron-builder.yml
+├── package.json
+└── .github/
+    └── workflows/
+        └── release.yml
+```
+
+---
+
+## Technology
+
+| Component | Technology |
+| --- | --- |
+| Runtime | Electron |
+| Frontend | React + TypeScript |
+| Styling | Tailwind CSS |
+| Database | SQLite (`better-sqlite3`) |
+| Build Tooling | electron-vite |
+| Packaging | electron-builder |
+| CI/CD | GitHub Actions |
+
+---
+
+## License
+
+ISC License
+
+Copyright © Lyam
