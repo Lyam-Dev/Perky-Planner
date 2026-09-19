@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  CATEGORY_PRESETS,
-  type CalendarEvent,
-  type EventCategory,
-  type EventInput
-} from '@shared/types'
+import type { CalendarEvent, Category, EventInput } from '@shared/types'
 import { formatLongDate, formatTimeRange, fromISODate } from '../lib/dateEngine'
 import { CloseIcon, ClockIcon, PlusIcon, TrashIcon } from './Icons'
 
@@ -15,11 +10,13 @@ interface EventModalProps {
   dayEvents: CalendarEvent[]
   /** Event being edited, or null when creating. */
   editing: CalendarEvent | null
+  /** Available categories (built-ins plus user-defined ones). */
+  categories: Category[]
   onClose: () => void
-  onSave: (input: EventInput, editingId: number | null) => Promise<void>
-  onDelete: (id: number) => Promise<void>
+  onSave: (input: EventInput, editingId: string | null) => Promise<void>
+  onDelete: (id: string) => Promise<void>
   /** Switch the modal into edit mode for an existing event. */
-  onEdit: (id: number) => void
+  onEdit: (id: string) => void
 }
 
 interface FormState {
@@ -28,7 +25,7 @@ interface FormState {
   allDay: boolean
   startTime: string
   endTime: string
-  category: EventCategory
+  category: string
   color: string
 }
 
@@ -38,9 +35,12 @@ const EMPTY_FORM: FormState = {
   allDay: true,
   startTime: '09:00',
   endTime: '10:00',
-  category: 'personal',
-  color: CATEGORY_PRESETS[1].color
+  category: '',
+  color: ''
 }
+
+/** Fallback badge color when no category exists at all. */
+const FALLBACK_COLOR = '#4f46e5'
 
 /**
  * Modal form for creating, editing and deleting events. Supports full-day and
@@ -50,6 +50,7 @@ export function EventModal({
   date,
   dayEvents,
   editing,
+  categories,
   onClose,
   onSave,
   onDelete,
@@ -58,6 +59,8 @@ export function EventModal({
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const fallbackCategory = useMemo(() => categories[0] ?? null, [categories])
 
   // Sync form when the editing target changes.
   useEffect(() => {
@@ -72,15 +75,18 @@ export function EventModal({
         color: editing.color
       })
     } else {
-      const preset = CATEGORY_PRESETS.find((c) => c.value === 'personal') ?? CATEGORY_PRESETS[0]
-      setForm({ ...EMPTY_FORM, color: preset.color })
+      setForm({
+        ...EMPTY_FORM,
+        category: fallbackCategory?.value ?? '',
+        color: fallbackCategory?.color ?? FALLBACK_COLOR
+      })
     }
     setError(null)
-  }, [editing, date])
+  }, [editing, date, fallbackCategory])
 
   const selectedDate = useMemo(() => fromISODate(date), [date])
 
-  const handleCategory = (value: EventCategory, color: string) => {
+  const handleCategory = (value: string, color: string) => {
     setForm((f) => ({ ...f, category: value, color }))
   }
 
@@ -121,7 +127,7 @@ export function EventModal({
     }
   }
 
-  const destroy = async (id: number) => {
+  const destroy = async (id: string) => {
     setSaving(true)
     try {
       await onDelete(id)
@@ -132,26 +138,26 @@ export function EventModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[2px] animate-fade-in"
       onClick={onClose}
     >
-      <div
-        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-pop-in"
+            <div
+        className="glass-panel relative z-10 flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl shadow-2xl animate-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <header className="flex items-start justify-between gap-4 border-b border-surface-border px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-800">
+            <h2 className="text-base font-semibold text-content">
               {editing ? 'Edit event' : 'New event'}
             </h2>
-            <p className="mt-0.5 text-xs text-slate-500">{formatLongDate(selectedDate)}</p>
+            <p className="mt-0.5 text-xs text-content-muted">{formatLongDate(selectedDate)}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all duration-200 hover:rotate-90 hover:bg-surface-muted hover:text-slate-600 active:scale-90"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-content-subtle transition-all duration-200 hover:rotate-90 hover:bg-surface-muted hover:text-content-muted active:scale-90"
           >
             <CloseIcon />
           </button>
@@ -160,31 +166,31 @@ export function EventModal({
         {/* Body */}
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div className="animate-slide-up" style={{ animationDelay: '40ms' }}>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Title</label>
+            <label className="mb-1 block text-xs font-medium text-content-muted">Title</label>
             <input
               autoFocus
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               placeholder="Event title"
-              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.08)]"
+              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-content outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.08)]"
             />
           </div>
 
           <div className="animate-slide-up" style={{ animationDelay: '90ms' }}>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Description</label>
+            <label className="mb-1 block text-xs font-medium text-content-muted">Description</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="Notes, agenda, location…"
               rows={3}
-              className="w-full resize-none rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.08)]"
+              className="w-full resize-none rounded-lg border border-surface-border px-3 py-2 text-sm text-content outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.08)]"
             />
           </div>
 
           {/* All-day toggle */}
           <div className="flex items-center justify-between rounded-lg border border-surface-border px-3 py-2 animate-slide-up" style={{ animationDelay: '140ms' }}>
-            <span className="flex items-center gap-2 text-sm text-slate-700">
-              <ClockIcon className="text-slate-400" />
+            <span className="flex items-center gap-2 text-sm text-content">
+              <ClockIcon className="text-content-subtle" />
               All-day event
             </span>
             <button
@@ -194,7 +200,7 @@ export function EventModal({
               onClick={() => setForm((f) => ({ ...f, allDay: !f.allDay }))}
               className={[
                 'relative h-5 w-9 rounded-full transition-colors',
-                form.allDay ? 'bg-brand-600' : 'bg-slate-300'
+                form.allDay ? 'bg-brand-600' : 'bg-surface-border'
               ].join(' ')}
             >
               <span
@@ -203,7 +209,7 @@ export function EventModal({
                   // explicit `left`, the absolutely-positioned knob falls back
                   // to its centred static position and the translate pushes it
                   // off the end of the track.
-                  'absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                  'absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-transform',
                   form.allDay ? 'translate-x-4' : 'translate-x-0'
                 ].join(' ')}
               />
@@ -214,21 +220,21 @@ export function EventModal({
           {!form.allDay && (
             <div className="grid grid-cols-2 gap-3 animate-expand-in">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Start</label>
+                <label className="mb-1 block text-xs font-medium text-content-muted">Start</label>
                 <input
                   type="time"
                   value={form.startTime}
                   onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
-                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-content outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">End</label>
+                <label className="mb-1 block text-xs font-medium text-content-muted">End</label>
                 <input
                   type="time"
                   value={form.endTime}
                   onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
-                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm text-content outline-none transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
             </div>
@@ -236,35 +242,41 @@ export function EventModal({
 
           {/* Category / color */}
           <div className="animate-slide-up" style={{ animationDelay: '190ms' }}>
-            <label className="mb-1.5 block text-xs font-medium text-slate-600">Category</label>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORY_PRESETS.map((preset, i) => {
-                const active = form.category === preset.value
-                return (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    onClick={() => handleCategory(preset.value, preset.color)}
-                    style={{
-                      animationDelay: `${190 + i * 50}ms`,
-                      ...(active ? { backgroundColor: preset.color } : {})
-                    }}
-                    className={[
-                      'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium animate-chip-in transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95',
-                      active
-                        ? 'border-transparent text-white shadow-sm scale-105'
-                        : 'border-surface-border text-slate-600 hover:bg-surface-muted'
-                    ].join(' ')}
-                  >
-                    <span
-                      className="h-2 w-2 rounded-full transition-transform duration-200"
-                      style={{ backgroundColor: active ? '#ffffff' : preset.color, transform: active ? 'scale(1.25)' : undefined }}
-                    />
-                    {preset.label}
-                  </button>
-                )
-              })}
-            </div>
+            <label className="mb-1.5 block text-xs font-medium text-content-muted">Category</label>
+            {categories.length === 0 ? (
+              <p className="text-xs text-content-subtle">
+                No categories yet — add some in Settings → Categories.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {categories.map((preset, i) => {
+                  const active = form.category === preset.value
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleCategory(preset.value, preset.color)}
+                      style={{
+                        animationDelay: `${190 + i * 50}ms`,
+                        ...(active ? { backgroundColor: preset.color } : {})
+                      }}
+                      className={[
+                        'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium animate-chip-in transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95',
+                        active
+                          ? 'border-transparent text-white shadow-sm scale-105'
+                          : 'border-surface-border text-content-muted hover:bg-surface-muted'
+                      ].join(' ')}
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full transition-transform duration-200"
+                        style={{ backgroundColor: active ? '#ffffff' : preset.color, transform: active ? 'scale(1.25)' : undefined }}
+                      />
+                      {preset.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {error && (
@@ -276,7 +288,7 @@ export function EventModal({
           {/* Existing events for the day */}
           {dayEvents.length > 0 && (
             <div className="border-t border-surface-border pt-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-content-subtle">
                 On this day
               </p>
               <ul className="space-y-1.5">
@@ -297,14 +309,14 @@ export function EventModal({
                         style={{ backgroundColor: ev.color }}
                       />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-700">
+                        <p className="truncate text-sm font-medium text-content">
                           {ev.title || 'Untitled'}
                         </p>
-                        <p className="truncate text-[11px] text-slate-400">
+                        <p className="truncate text-[11px] text-content-subtle">
                           {formatTimeRange(ev.startTime, ev.endTime, ev.allDay)}
                         </p>
                         {ev.description.trim() && (
-                          <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[11px] leading-snug text-slate-500">
+                          <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[11px] leading-snug text-content-muted">
                             {ev.description}
                           </p>
                         )}
@@ -314,7 +326,7 @@ export function EventModal({
                       type="button"
                       onClick={() => destroy(ev.id)}
                       aria-label="Delete event"
-                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-white hover:text-red-500 active:scale-95"
+                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-content-subtle transition-all duration-200 hover:scale-110 hover:bg-surface hover:text-red-500 active:scale-95"
                     >
                       <TrashIcon />
                     </button>
@@ -330,7 +342,7 @@ export function EventModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 hover:bg-surface-muted active:scale-95"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-content-muted transition-all duration-200 hover:bg-surface-muted active:scale-95"
           >
             Cancel
           </button>

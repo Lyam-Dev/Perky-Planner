@@ -25,19 +25,19 @@ export function useTasks() {
     return created
   }, [])
 
-  const updateTask = useCallback(async (id: number, input: Partial<TaskInput>) => {
+  const updateTask = useCallback(async (id: string, input: Partial<TaskInput>) => {
     const updated = await window.calendar.tasks.update(id, input)
     setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)))
     return updated
   }, [])
 
-  const toggleTask = useCallback(async (id: number) => {
+  const toggleTask = useCallback(async (id: string) => {
     const updated = await window.calendar.tasks.toggle(id)
     setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)))
     return updated
   }, [])
 
-  const removeTask = useCallback(async (id: number) => {
+  const removeTask = useCallback(async (id: string) => {
     await window.calendar.tasks.remove(id)
     setTasks((prev) => prev.filter((t) => t.id !== id))
   }, [])

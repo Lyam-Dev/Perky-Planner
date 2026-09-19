@@ -9,8 +9,8 @@ interface TaskSidebarProps {
   /** Returns the created task; the return value is ignored by the sidebar. */
   onCreate: (list: TaskList, text: string) => Promise<unknown>
   /** Returns the toggled task; the return value is ignored by the sidebar. */
-  onToggle: (id: number) => Promise<unknown>
-  onRemove: (id: number) => Promise<unknown>
+  onToggle: (id: string) => Promise<unknown>
+  onRemove: (id: string) => Promise<unknown>
 }
 
 const VIEWS: { key: TaskList; label: string; hint: string }[] = [
@@ -47,16 +47,16 @@ export function TaskSidebar({
 
   if (collapsed) {
     return (
-      <aside className="flex w-12 flex-col items-center gap-3 border-l border-surface-border bg-white py-3 animate-slide-in-right">
+      <aside className="flex w-12 flex-col items-center gap-3 border-l border-surface-border bg-surface py-3 animate-slide-in-right">
         <button
           type="button"
           onClick={onToggleCollapsed}
           aria-label="Expand task sidebar"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-all duration-200 hover:scale-110 hover:bg-brand-50 hover:text-brand-600 active:scale-95"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-content-muted transition-all duration-200 hover:scale-110 hover:bg-brand-50 hover:text-brand-600 active:scale-95"
         >
           <PanelIcon />
         </button>
-        <span className="rotate-180 text-[11px] font-semibold uppercase tracking-widest text-slate-400 [writing-mode:vertical-rl]">
+        <span className="rotate-180 text-[11px] font-semibold uppercase tracking-widest text-content-subtle [writing-mode:vertical-rl]">
           Tasks
         </span>
       </aside>
@@ -64,15 +64,15 @@ export function TaskSidebar({
   }
 
   return (
-    <aside className="flex w-72 flex-col border-l border-surface-border bg-white animate-slide-in-right">
+    <aside className="flex w-72 flex-col border-l border-surface-border bg-surface animate-slide-in-right">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-800">Tasks</h2>
+        <h2 className="text-sm font-semibold text-content">Tasks</h2>
         <button
           type="button"
           onClick={onToggleCollapsed}
           aria-label="Collapse task sidebar"
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all duration-200 hover:rotate-90 hover:bg-surface-muted hover:text-slate-600 active:scale-90"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-content-subtle transition-all duration-200 hover:rotate-90 hover:bg-surface-muted hover:text-content-muted active:scale-90"
         >
           <PanelIcon />
         </button>
@@ -92,11 +92,11 @@ export function TaskSidebar({
                 'flex-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-all duration-200 active:scale-95',
                 active
                   ? 'bg-brand-50 text-brand-700 shadow-sm'
-                  : 'text-slate-500 hover:-translate-y-0.5 hover:bg-surface-muted hover:text-slate-700'
+                  : 'text-content-muted hover:-translate-y-0.5 hover:bg-surface-muted hover:text-content'
               ].join(' ')}
             >
               {v.label.split(' ')[0]}
-              {count > 0 && <span className="ml-1 text-slate-400">{count}</span>}
+              {count > 0 && <span className="ml-1 text-content-subtle">{count}</span>}
             </button>
           )
         })}
@@ -112,7 +112,7 @@ export function TaskSidebar({
               if (e.key === 'Enter') submit()
             }}
             placeholder={VIEWS.find((v) => v.key === view)?.hint}
-            className="flex-1 bg-transparent py-1.5 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+            className="flex-1 bg-transparent py-1.5 text-sm text-content outline-none placeholder:text-content-subtle"
           />
           <button
             type="button"
@@ -129,7 +129,7 @@ export function TaskSidebar({
       {/* Task list */}
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
         {visible.length === 0 ? (
-          <p className="mt-6 text-center text-xs text-slate-400">Nothing here yet.</p>
+          <p className="mt-6 text-center text-xs text-content-subtle">Nothing here yet.</p>
         ) : (
           <ul className="space-y-1">
             {visible.map((task, i) => (
@@ -146,7 +146,7 @@ export function TaskSidebar({
                     'mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-all duration-200 active:scale-75',
                     task.completed
                       ? 'animate-check-pop border-brand-600 bg-brand-600 text-white'
-                      : 'border-slate-300 text-transparent hover:scale-110 hover:border-brand-400'
+                                            : 'border-surface-border text-transparent hover:scale-110 hover:border-brand-400'
                   ].join(' ')}
                 >
                   <CheckIcon />
@@ -154,7 +154,7 @@ export function TaskSidebar({
                 <span
                   className={[
                     'flex-1 break-words text-sm leading-snug transition-all duration-200',
-                    task.completed ? 'text-slate-400 line-through' : 'text-slate-700'
+                    task.completed ? 'text-content-subtle line-through' : 'text-content'
                   ].join(' ')}
                 >
                   {task.text}
@@ -163,7 +163,7 @@ export function TaskSidebar({
                   type="button"
                   onClick={() => onRemove(task.id)}
                   aria-label="Delete task"
-                  className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-slate-300 opacity-0 transition-all duration-200 hover:scale-110 hover:text-red-500 group-hover:opacity-100"
+                  className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-content-faint opacity-0 transition-all duration-200 hover:scale-110 hover:text-red-500 group-hover:opacity-100"
                 >
                   <TrashIcon width={13} height={13} />
                 </button>
@@ -175,7 +175,7 @@ export function TaskSidebar({
 
       {/* Footer summary */}
       <div className="border-t border-surface-border px-4 py-2.5">
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-content-subtle">
           {remaining === 0 ? 'All caught up 🎉' : `${remaining} remaining`}
         </p>
       </div>

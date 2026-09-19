@@ -1,0 +1,240 @@
+/**
+ * Theme + accent design tokens.
+ *
+ * Two independent axes are defined here:
+ *   1. Themes  — set on `<html data-theme="...">` and control surfaces/text.
+ *   2. Accents — set on `<html data-accent="...">` and control the brand ramp.
+ *
+ * Colours are stored as space-separated RGB channels (no `rgb()` wrapper) so
+ * Tailwind can inject an alpha channel, e.g. `bg-surface/70`.
+ * `useSettings` is the only code that writes these attributes.
+ */
+
+/* ------------------------------------------------------------------------- */
+/* Themes — surfaces and the foreground text ramp                            */
+/* ------------------------------------------------------------------------- */
+
+/* Default (also `data-theme="light"`): the original crisp light UI. */
+:root,
+[data-theme='light'] {
+  --surface: 255 255 255;
+  --surface-muted: 248 250 252;
+  --surface-border: 226 232 240;
+  --content: 30 41 59;
+  --content-muted: 71 85 105;
+  --content-subtle: 100 116 139;
+  --content-faint: 148 163 184;
+  --scrim: 15 23 42;
+  color-scheme: light;
+}
+
+/* Dark: slate surfaces with light text. */
+[data-theme='dark'] {
+  --surface: 30 41 59;
+  --surface-muted: 15 23 42;
+  --surface-border: 51 65 85;
+  --content: 241 245 249;
+  --content-muted: 203 213 225;
+  --content-subtle: 148 163 184;
+  --content-faint: 100 116 139;
+  --scrim: 2 6 23;
+  color-scheme: dark;
+}
+
+/* Midnight: deeper, bluer and lower contrast than Dark. */
+[data-theme='midnight'] {
+  --surface: 17 24 39;
+  --surface-muted: 2 6 23;
+  --surface-border: 30 41 59;
+  --content: 226 232 240;
+  --content-muted: 186 200 218;
+  --content-subtle: 148 163 184;
+  --content-faint: 100 116 139;
+  --scrim: 0 0 0;
+  color-scheme: dark;
+}
+
+/* Neon: near-black violet with a vivid accent-friendly foreground ramp. */
+[data-theme='neon'] {
+  --surface: 14 11 30;
+  --surface-muted: 6 4 16;
+  --surface-border: 58 42 104;
+  --content: 240 236 254;
+  --content-muted: 205 190 254;
+  --content-subtle: 167 139 250;
+  --content-faint: 128 100 200;
+  --scrim: 4 2 12;
+  color-scheme: dark;
+}
+
+/* Sand: warm, low-glare paper theme. */
+[data-theme='sand'] {
+  --surface: 255 251 240;
+  --surface-muted: 249 241 222;
+  --surface-border: 232 219 190;
+  --content: 67 48 25;
+  --content-muted: 112 84 48;
+  --content-subtle: 145 114 74;
+  --content-faint: 180 152 116;
+  --scrim: 67 48 25;
+  color-scheme: light;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Accents — the ten-step brand ramp                                         */
+/* ------------------------------------------------------------------------- */
+
+/* Default accent. */
+:root,
+[data-accent='indigo'] {
+  --brand-50: 238 242 255;
+  --brand-100: 224 231 255;
+  --brand-200: 199 210 254;
+  --brand-300: 165 180 252;
+  --brand-400: 129 140 248;
+  --brand-500: 99 102 241;
+  --brand-600: 79 70 229;
+  --brand-700: 67 56 202;
+  --brand-800: 55 48 163;
+  --brand-900: 49 46 129;
+}
+
+[data-accent='violet'] {
+  --brand-50: 245 243 255;
+  --brand-100: 237 233 254;
+  --brand-200: 221 214 254;
+  --brand-300: 196 181 253;
+  --brand-400: 167 139 250;
+  --brand-500: 139 92 246;
+  --brand-600: 124 58 237;
+  --brand-700: 109 40 217;
+  --brand-800: 91 33 182;
+  --brand-900: 76 29 149;
+}
+
+[data-accent='cyan'] {
+  --brand-50: 236 254 255;
+  --brand-100: 207 250 254;
+  --brand-200: 165 243 252;
+  --brand-300: 103 232 249;
+  --brand-400: 34 211 238;
+  --brand-500: 6 182 212;
+  --brand-600: 8 145 178;
+  --brand-700: 14 116 144;
+  --brand-800: 21 94 117;
+  --brand-900: 22 78 99;
+}
+
+[data-accent='emerald'] {
+  --brand-50: 236 253 245;
+  --brand-100: 209 250 229;
+  --brand-200: 167 243 208;
+  --brand-300: 110 231 183;
+  --brand-400: 52 211 153;
+  --brand-500: 16 185 129;
+  --brand-600: 5 150 105;
+  --brand-700: 4 120 87;
+  --brand-800: 6 95 70;
+  --brand-900: 6 78 59;
+}
+
+[data-accent='amber'] {
+  --brand-50: 255 251 235;
+  --brand-100: 254 243 199;
+  --brand-200: 253 230 138;
+  --brand-300: 252 211 77;
+  --brand-400: 251 191 36;
+  --brand-500: 245 158 11;
+  --brand-600: 217 119 6;
+  --brand-700: 180 83 9;
+  --brand-800: 146 64 14;
+  --brand-900: 120 53 15;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Glass / translucency                                                      */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * `--glass-strength` (0–100) is written inline on `<html>` by `useSettings`.
+ * It drives both the panel translucency (alpha channel) and — via the
+ * `calc()` below — the blur radius, so sliding glass from 0 → 100 grows the
+ * frost from nothing to a lush blur rather than staying frozen at 14px.
+ */
+:root {
+  --glass-strength: 60;
+}
+
+/**
+ * Frosted panel used for the sticky title bar and floating dialogs. The
+ * fallback keeps the app readable on systems without backdrop-filter support.
+ */
+.glass-panel {
+  background-color: rgb(var(--surface) / calc(var(--glass-strength) / 100));
+  backdrop-filter: blur(calc(6px + 0.16 * var(--glass-strength))) saturate(140%);
+  -webkit-backdrop-filter: blur(calc(6px + 0.16 * var(--glass-strength))) saturate(140%);
+}
+
+/* Fully opaque when the user turns glass off, avoiding a blur cost. */
+[data-glass='off'] .glass-panel {
+  background-color: rgb(var(--surface));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Dialog backdrop tinted from the active theme rather than a fixed slate. */
+.scrim {
+  background-color: rgb(var(--scrim) / 0.45);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Ambient backdrop — gives frosted panels something colorful to blur        */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * A fixed, pointer-through decorative layer that lives behind everything.
+ * It paints soft gradient blobs derived from the active accent + surface so
+ * the blur in `.glass-panel` reads as real depth instead of a muddy wash of a
+ * single flat colour. Opacity scales gently so it reads in every theme.
+ */
+.ambient-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px circle at 18% 18%, rgb(var(--brand-500) / 0.12), transparent 60%),
+    radial-gradient(900px circle at 86% 78%, rgb(var(--brand-400) / 0.09), transparent 55%),
+    radial-gradient(1100px circle at 42% 90%, rgb(var(--surface-muted) / 0.45), transparent 62%);
+  filter: blur(1px);
+}
+
+/* Dark themes: lift the brand wash and deepen the surface blob for contrast. */
+[data-theme='dark'] .ambient-backdrop,
+[data-theme='midnight'] .ambient-backdrop,
+[data-theme='neon'] .ambient-backdrop {
+  background:
+    radial-gradient(1200px circle at 18% 18%, rgb(var(--brand-500) / 0.18), transparent 60%),
+    radial-gradient(900px circle at 86% 78%, rgb(var(--brand-400) / 0.13), transparent 55%),
+    radial-gradient(1100px circle at 42% 6%, rgb(var(--surface-muted) / 0.65), transparent 62%);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Theme preview swatches (Settings → Appearance)                            */
+/* ------------------------------------------------------------------------- */
+
+.theme-swatch-light {
+  background: linear-gradient(160deg, #ffffff 0%, #f1f5f9 100%);
+}
+.theme-swatch-dark {
+  background: linear-gradient(160deg, #334155 0%, #0f172a 100%);
+}
+.theme-swatch-midnight {
+  background: linear-gradient(160deg, #1f2a44 0%, #020617 100%);
+}
+.theme-swatch-neon {
+  background: linear-gradient(160deg, #2c2350 0%, #0e0b1e 100%);
+}
+.theme-swatch-sand {
+  background: linear-gradient(160deg, #fffbf0 0%, #f3e3c3 100%);
+}

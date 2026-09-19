@@ -65,7 +65,7 @@ export function DayCell({ cell, events, onSelect, onOpenDay }: DayCellProps): JS
       className={[
         'group relative flex h-full w-full min-h-[92px] flex-col gap-1 border-b border-r border-surface-border p-1.5 text-left transition-all duration-200',
         cell.inCurrentMonth
-          ? 'bg-white hover:bg-brand-50/60 hover:shadow-[inset_0_0_0_2px_rgba(99,102,241,0.25)]'
+          ? 'bg-surface hover:bg-brand-50/60 hover:shadow-[inset_0_0_0_2px_rgba(99,102,241,0.25)]'
           : 'bg-surface-muted/60 hover:bg-brand-50/40',
         'hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-inset active:scale-[0.99]'
       ].join(' ')}
@@ -77,14 +77,14 @@ export function DayCell({ cell, events, onSelect, onOpenDay }: DayCellProps): JS
             cell.isToday
               ? 'bg-brand-600 text-white'
               : cell.inCurrentMonth
-                ? 'text-slate-700'
-                : 'text-slate-400'
+                ? 'text-content'
+                : 'text-content-subtle'
           ].join(' ')}
         >
           {cell.day}
         </span>
         {events.length > 0 && (
-          <span className="text-[10px] font-medium text-slate-400">{events.length}</span>
+          <span className="text-[10px] font-medium text-content-subtle">{events.length}</span>
         )}
       </div>
 
@@ -104,12 +104,12 @@ export function DayCell({ cell, events, onSelect, onOpenDay }: DayCellProps): JS
           </div>
         ))}
         {overflow > 0 && (
-          <span className="px-1 text-[10px] font-medium text-slate-400">+{overflow} more</span>
+          <span className="px-1 text-[10px] font-medium text-content-subtle">+{overflow} more</span>
         )}
       </div>
 
       {/* Hover affordance for the day view */}
-      <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-slate-900/70 px-1 py-0.5 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+      <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-scrim/70 px-1 py-0.5 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
         Day view
       </span>
     </button>

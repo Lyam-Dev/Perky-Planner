@@ -25,13 +25,13 @@ export function useEvents() {
     return created
   }, [])
 
-  const updateEvent = useCallback(async (id: number, input: EventInput) => {
+  const updateEvent = useCallback(async (id: string, input: EventInput) => {
     const updated = await window.calendar.events.update(id, input)
     setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)))
     return updated
   }, [])
 
-  const removeEvent = useCallback(async (id: number) => {
+  const removeEvent = useCallback(async (id: string) => {
     await window.calendar.events.remove(id)
     setEvents((prev) => prev.filter((e) => e.id !== id))
   }, [])

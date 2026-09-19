@@ -4,23 +4,38 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      /**
+       * Every colour is driven by a CSS custom property defined in
+       * `src/renderer/index.css`, so switching the theme or accent in Settings
+       * re-skins the whole app instantly without re-rendering components.
+       * Values are stored as space-separated RGB channels so Tailwind's
+       * `<alpha-value>` (e.g. `bg-surface/70`) keeps working.
+       */
       colors: {
         surface: {
-          DEFAULT: '#ffffff',
-          muted: '#f8fafc',
-          border: '#e2e8f0'
+          DEFAULT: 'rgb(var(--surface) / <alpha-value>)',
+          muted: 'rgb(var(--surface-muted) / <alpha-value>)',
+          border: 'rgb(var(--surface-border) / <alpha-value>)'
         },
+        /** Foreground text ramp, darkest → faintest. */
+        content: {
+          DEFAULT: 'rgb(var(--content) / <alpha-value>)',
+          muted: 'rgb(var(--content-muted) / <alpha-value>)',
+          subtle: 'rgb(var(--content-subtle) / <alpha-value>)',
+          faint: 'rgb(var(--content-faint) / <alpha-value>)'
+        },
+        /** Accent ramp, remapped per selected accent colour. */
         brand: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81'
+          50: 'rgb(var(--brand-50) / <alpha-value>)',
+          100: 'rgb(var(--brand-100) / <alpha-value>)',
+          200: 'rgb(var(--brand-200) / <alpha-value>)',
+          300: 'rgb(var(--brand-300) / <alpha-value>)',
+          400: 'rgb(var(--brand-400) / <alpha-value>)',
+          500: 'rgb(var(--brand-500) / <alpha-value>)',
+          600: 'rgb(var(--brand-600) / <alpha-value>)',
+          700: 'rgb(var(--brand-700) / <alpha-value>)',
+          800: 'rgb(var(--brand-800) / <alpha-value>)',
+          900: 'rgb(var(--brand-900) / <alpha-value>)'
         }
       },
       fontFamily: {

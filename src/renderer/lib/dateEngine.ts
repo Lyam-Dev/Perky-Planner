@@ -6,6 +6,8 @@
  * which correctly handles leap years for any year (past, present or future).
  */
 
+import type { WeekStart } from '@shared/types'
+
 export interface DayCellData {
   /** The actual date for this cell. */
   date: Date
@@ -78,15 +80,21 @@ export function addMonths(
 /**
  * Builds the full 6-week grid for a month. Always returns 42 cells so the
  * layout stays perfectly stable (no jumping row counts), with days from the
- * adjacent months filling the leading/trailing slots.
+ * adjacent months filling the leading/trailing slots. Honors the configured
+ * week start (Sunday or Monday).
  */
-export function getMonthGrid(year: number, month: number): DayCellData[] {
+export function getMonthGrid(
+  year: number,
+  month: number,
+  weekStart: WeekStart = 'sunday'
+): DayCellData[] {
   const today = startOfToday()
   const firstOfMonth = new Date(year, month, 1)
-  const startWeekday = firstOfMonth.getDay() // 0 (Sun) .. 6 (Sat)
+  const firstDayOfWeek = weekStart === 'monday' ? 1 : 0
 
-  // Start from the Sunday on/before the 1st of the month.
-  const gridStart = new Date(year, month, 1 - startWeekday)
+  // Days to back-pedal so the grid starts on the configured first weekday.
+  const offset = (firstOfMonth.getDay() - firstDayOfWeek + 7) % 7
+  const gridStart = new Date(year, month, 1 - offset)
 
   const cells: DayCellData[] = []
   for (let i = 0; i < 42; i++) {
@@ -101,6 +109,15 @@ export function getMonthGrid(year: number, month: number): DayCellData[] {
     })
   }
   return cells
+}
+
+/**
+ * Weekday header labels rotated to match the configured week start.
+ * `WEEKDAY_LABELS` is indexed by the native `Date.getDay()` (Sun = 0).
+ */
+export function getWeekdayLabels(weekStart: WeekStart = 'sunday'): string[] {
+  if (weekStart === 'monday') return [...WEEKDAY_LABELS.slice(1), WEEKDAY_LABELS[0]]
+  return WEEKDAY_LABELS
 }
 
 /** Human readable month + year, e.g. "September 2026". */

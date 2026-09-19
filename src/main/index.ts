@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initDatabase } from './db'
 import { registerIpcHandlers } from './ipc'
+import { checkForUpdates } from './updater'
 
 const isMac = process.platform === 'darwin'
 
@@ -58,6 +59,12 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // Test/CI hook: allow redirecting the userData dir (where calendar.db
+  // lives) via env var. macOS Electron ignores $HOME, so this is the only
+  // reliable way to run the app against a scratch profile.
+  const userDataOverride = process.env.PERKY_USER_DATA_DIR
+  if (userDataOverride) app.setPath('userData', userDataOverride)
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.perkyplanner.app')
 
@@ -73,10 +80,25 @@ app.whenReady().then(() => {
 
   createWindow()
 
+  // Silently look for a newer published release once the window is up. Only
+  // meaningful for packaged builds, so development stays quiet.
+  if (app.isPackaged) {
+    mainWindowReadyHook()
+  }
+
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+/** Kicks off a background update check after the first paint. */
+function mainWindowReadyHook(): void {
+  const window = BrowserWindow.getAllWindows()[0]
+  if (!window) return
+  window.webContents.once('did-finish-load', () => {
+    void checkForUpdates()
+  })
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

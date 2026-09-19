@@ -28,7 +28,7 @@ interface DayViewProps {
   events: CalendarEvent[]
   onBack: () => void
   onAddEvent: () => void
-  onEditEvent: (id: number) => void
+  onEditEvent: (id: string) => void
 }
 
 interface PositionedEvent {
@@ -194,22 +194,22 @@ export function DayView({
   const eventCount = events.length
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-surface-border bg-white shadow-sm">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-surface-border bg-surface shadow-sm">
       {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-surface-border px-4 py-3">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-1 rounded-lg border border-surface-border px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-all duration-200 hover:-translate-x-0.5 hover:bg-surface-muted active:scale-95"
+            className="flex items-center gap-1 rounded-lg border border-surface-border px-2.5 py-1.5 text-xs font-semibold text-content-muted transition-all duration-200 hover:-translate-x-0.5 hover:bg-surface-muted active:scale-95"
           >
             <ChevronLeft width={15} height={15} />
             Calendar
           </button>
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">{formatLongDate(selectedDate)}</h2>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-              <ClockIcon className="text-slate-400" />
+            <h2 className="text-lg font-semibold text-content">{formatLongDate(selectedDate)}</h2>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-content-muted">
+              <ClockIcon className="text-content-subtle" />
               {eventCount === 0
                 ? 'No events scheduled'
                 : `${eventCount} event${eventCount === 1 ? '' : 's'}`}
@@ -232,7 +232,7 @@ export function DayView({
       {/* All-day banner */}
       {allDayEvents.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-surface-border bg-surface-muted/60 px-4 py-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-content-subtle">
             All day
           </span>
           {allDayEvents.map((ev) => (
@@ -258,7 +258,7 @@ export function DayView({
           <div className="w-16 flex-shrink-0 border-r border-surface-border">
             {HOURS.map((hour) => (
               <div key={hour} className="relative" style={{ height: HOUR_HEIGHT }}>
-                <span className="absolute -top-2 right-2 text-[11px] font-medium text-slate-400">
+                <span className="absolute -top-2 right-2 text-[11px] font-medium text-content-subtle">
                   {formatHourLabel(hour)}
                 </span>
               </div>
@@ -322,7 +322,7 @@ export function DayView({
                   )}
 
                   {height > 42 && (
-                    <span className="mt-0.5 inline-block rounded bg-white/80 px-1 py-px text-[9px] font-semibold">
+                    <span className="mt-0.5 inline-block rounded bg-surface/80 px-1 py-px text-[9px] font-semibold">
                       {formatDuration(duration)}
                     </span>
                   )}
@@ -331,7 +331,7 @@ export function DayView({
             })}
 
             {positioned.length === 0 && (
-              <p className="absolute inset-x-0 top-16 text-center text-xs text-slate-400">
+              <p className="absolute inset-x-0 top-16 text-center text-xs text-content-subtle">
                 Nothing scheduled on the timeline — click “Add event” to create something.
               </p>
             )}

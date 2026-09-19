@@ -37,6 +37,26 @@ are stored locally in **SQLite** (`better-sqlite3`) so data persists across rest
 - Bouncy modal pop-in, hover lift/rotate/scale micro-interactions on all buttons.
 - Checkbox tick bounce in the task sidebar and a floating app logo.
 
+### Personalization (v1.1)
+- **Custom categories**: create, rename and recolor your own category presets from
+  Settings → Categories; every event can use any category.
+- **Five themes** (Light, Dark, Midnight, Neon, Sand), five **accent colors**, a
+  **glass-intensity** slider and a **week-start** toggle (Sunday/Monday) in
+  Settings → Appearance. All persisted locally.
+- **Undo**: every create/update/delete (events, tasks, categories) records an
+  inverse snapshot — `⌘Z` / `Ctrl+Z` walks it back.
+
+### Sharing & data (v1.1)
+- **Share codes**: Settings → Data exports your whole calendar (events, tasks,
+  categories, settings) as a compact `perky1:` code (deflate + base64url) to
+  paste to a friend, or to another machine.
+- **Import**: paste a code to **merge** it with last-write-wins conflict
+  resolution (newer edits win; deletions propagate via tombstones), or
+  **replace** everything with the snapshot. Import is atomic — a malformed
+  code leaves the database untouched.
+- **Auto-update**: on macOS/Windows the app checks GitHub Releases and offers
+  one-click installs (can be skipped on Linux, where packages manage updates).
+
 ## Project structure
 
 ```
@@ -86,26 +106,39 @@ Stored at `app.getPath('userData')/calendar.db`.
 
 | column | type | notes |
 | --- | --- | --- |
-| `id` | INTEGER | primary key |
+| `id` | TEXT | UUID primary key (v1.0 integer ids migrate to `legacy-N`) |
 | `title` | TEXT | required |
 | `description` | TEXT | notes/details |
 | `date` | TEXT | `YYYY-MM-DD` (indexed) |
 | `all_day` | INTEGER | `0`/`1` |
 | `start_time` / `end_time` | TEXT | `HH:mm`, `NULL` when all-day |
-| `category` | TEXT | `work` \| `personal` \| `important` \| `other` |
+| `category` | TEXT | category `value` (preset or custom) |
 | `color` | TEXT | hex color used for the badge |
-| `created_at` / `updated_at` | TEXT | ISO timestamps |
+| `created_at` / `updated_at` | TEXT | ISO timestamps (drive merge conflicts) |
 
 **tasks**
 
 | column | type | notes |
 | --- | --- | --- |
-| `id` | INTEGER | primary key |
+| `id` | TEXT | UUID primary key |
 | `text` | TEXT | required |
 | `completed` | INTEGER | `0`/`1` |
 | `list` | TEXT | `today` \| `upcoming` \| `notes` (indexed) |
 | `due_date` | TEXT | optional `YYYY-MM-DD` (indexed) |
-| `created_at` | TEXT | ISO timestamp |
+| `created_at` / `updated_at` | TEXT | ISO timestamps |
+
+**categories** — user-defined color tags: `id` (UUID), `value` (unique slug),
+`label`, `color`, timestamps. The four presets (Work/Personal/Important/Other)
+are seeded on first run.
+
+**settings** — key/value store: `theme`, `accent`, `glassIntensity`,
+`weekStart`, `sidebarVisible`, `updateChannel`.
+
+**tombstones** — `kind` (`event`/`task`) + `id` + `deleted_at`; they make
+deletions propagate through share-code merges instead of resurrecting rows.
+
+A `perky1:` snapshot bundles all five (minus settings, which are never
+clobbered) plus a schema `version` for forward compatibility.
 
 ## Getting started
 
