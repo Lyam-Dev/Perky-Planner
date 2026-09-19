@@ -1,208 +1,64 @@
 # Perky Planner
 
-A cross-platform desktop calendar application for **Windows**, **macOS** and **Linux**,
-built with **Electron**, **React**, **TypeScript** and **Tailwind CSS**. Events and tasks
-are stored locally in **SQLite** (`better-sqlite3`) so data persists across restarts.
+A modern, cross-platform perpetual calendar and task management application built with Electron, React, TypeScript, and Tailwind CSS for Windows, macOS, and Linux. Perky Planner provides a streamlined experience for managing events, organizing daily tasks, customizing workflows, and keeping data safely stored locally using SQLite.
+
+---
+
+## Overview
+
+Perky Planner is designed to simplify schedule management while providing powerful planning tools for both everyday users and power planners. It combines a modern, motion-driven user interface with reliable local data persistence, custom event categories, flexible themes, and built-in export and import tools.
+
+---
 
 ## Features
 
-### Dynamic perpetual calendar engine
-- Accurate month grids for **any** month and year — past, present or future.
-- Full leap-year handling via native `Date` arithmetic.
-- Always renders a stable **6 x 7 (42-cell)** grid; days from adjacent months are shown
-  dimmed so the layout never shifts.
-- Navigate with previous/next month, previous/next **year**, or jump to **Today**.
+### Calendar Engine
+* Dynamic perpetual calendar grid for any past, present, or future month and year
+* Full leap-year handling powered by native `Date` arithmetic
+* Stable 6x7 (42-cell) grid with adjacent month days dimmed for consistent layouts
+* Navigation by previous/next month, previous/next year, or instant jump to Today
 
-### Event & important date management
-- Click any day cell to open an interactive modal to **add, edit or delete** events.
-- Each event supports a **title**, full **description/notes**.
-- **Time frames**: all-day events, or custom start/end times (e.g. `9:00 AM – 10:30 AM`).
-- **Color-coded categories**: Work, Personal, Important, Other.
-- Event badges appear directly in the day cells with a `+N more` overflow indicator.
+### Event & Date Management
+* Interactive event creation, editing, and deletion modal
+* Detailed event notes and time-frame support (all-day or custom start/end times)
+* Color-coded category presets with day-cell badges and overflow indicators (`+N more`)
 
-### Daily quick-task sidebar
-- Persistent, **collapsible** sidebar for short tasks/to-dos.
-- Quick entry with **Enter** to add, and checkbox toggles for completion.
-- Three distinct views: **Today's Tasks**, **Upcoming** and **General Notes**.
+### Daily Task Sidebar
+* Persistent, collapsible sidebar for quick-entry to-dos
+* Three distinct views: Today's Tasks, Upcoming, and General Notes
+* Enter-to-add entry and checkbox completion toggles
 
-### Cross-platform UI & architecture
-- macOS: native traffic lights (`titleBarStyle: 'hiddenInset'`) with a draggable header.
-- Windows: standard window frame with native window controls.
-- Linux: packaged as **AppImage**, **deb** and **rpm** with a desktop entry and icons.
-- Secure Electron setup: `contextIsolation: true`, `nodeIntegration: false`, and a typed
-  `contextBridge` API as the only renderer-to-main surface.
+### User Experience & Customization
+* Five built-in themes (Light, Dark, Midnight, Neon, Sand) and five accent colors
+* Adjustable glass-intensity slider and week-start toggle (Sunday/Monday)
+* Custom event categories with configurable labels and color presets
+* Instant undo (`⌘Z` / `Ctrl+Z`) for event, task, and category modifications
+* Smooth entrance animations, bouncy modals, and micro-interactions
 
-### Motion & polish
-- Staggered day-cell and event-chip entrances when the month changes.
-- Bouncy modal pop-in, hover lift/rotate/scale micro-interactions on all buttons.
-- Checkbox tick bounce in the task sidebar and a floating app logo.
+### Data & Synchronization
+* Local-first persistence powered by SQLite (`better-sqlite3`)
+* Compact share code export/import (`perky1:`) with conflict-resolution merging
+* Automatic update checks through GitHub Releases
+* Tombstone tracking to ensure deleted items stay deleted across devices
 
-### Personalization (v1.1)
-- **Custom categories**: create, rename and recolor your own category presets from
-  Settings → Categories; every event can use any category.
-- **Five themes** (Light, Dark, Midnight, Neon, Sand), five **accent colors**, a
-  **glass-intensity** slider and a **week-start** toggle (Sunday/Monday) in
-  Settings → Appearance. All persisted locally.
-- **Undo**: every create/update/delete (events, tasks, categories) records an
-  inverse snapshot — `⌘Z` / `Ctrl+Z` walks it back.
+---
 
-### Sharing & data (v1.1)
-- **Share codes**: Settings → Data exports your whole calendar (events, tasks,
-  categories, settings) as a compact `perky1:` code (deflate + base64url) to
-  paste to a friend, or to another machine.
-- **Import**: paste a code to **merge** it with last-write-wins conflict
-  resolution (newer edits win; deletions propagate via tombstones), or
-  **replace** everything with the snapshot. Import is atomic — a malformed
-  code leaves the database untouched.
-- **Auto-update**: on macOS/Windows the app checks GitHub Releases and offers
-  one-click installs (can be skipped on Linux, where packages manage updates).
+## Installation
 
-## Project structure
+> **Note**  
+> Perky Planner is currently not code signed. Your operating system may display a security warning during the first launch. This is expected and simply indicates that the application has not yet been signed with a developer certificate.
 
-```
-.
-├── electron.vite.config.ts        # electron-vite build config (main / preload / renderer)
-├── electron-builder.yml           # cross-platform packaging (dmg/zip + nsis)
-├── tailwind.config.js
-├── postcss.config.js
-├── tsconfig.json                  # references the two project configs
-├── tsconfig.node.json             # main + preload + shared
-├── tsconfig.web.json              # renderer
-├── build/
-│   └── entitlements.mac.plist
-└── src/
-    ├── main/
-    │   ├── index.ts               # app lifecycle, BrowserWindow, OS frame handling
-    │   ├── db.ts                  # SQLite init, schema, events + tasks CRUD
-    │   └── ipc.ts                 # ipcMain handlers bridging renderer -> database
-    ├── preload/
-    │   ├── index.ts               # contextBridge exposure of the typed API
-    │   └── index.d.ts             # global Window typings
-    ├── shared/
-    │   └── types.ts               # domain types + IPC channel constants
-    └── renderer/
-        ├── index.html
-        ├── main.tsx               # React root
-        ├── App.tsx                # app shell wiring everything together
-        ├── index.css              # Tailwind layers + scrollbar styling
-        ├── lib/
-        │   └── dateEngine.ts      # perpetual calendar grid + formatting utilities
-        ├── hooks/
-        │   ├── useEvents.ts       # reactive events state (CRUD)
-        │   └── useTasks.ts        # reactive tasks state (CRUD)
-        └── components/
-            ├── CalendarGrid.tsx   # 6x7 grid, month/year navigation, Today
-            ├── DayCell.tsx        # single day cell with event badges
-            ├── EventModal.tsx     # create/edit/delete event form
-            ├── TaskSidebar.tsx    # collapsible task sidebar with 3 views
-            └── Icons.tsx          # dependency-free inline SVG icon set
-```
+### Windows
+1. Download `Perky Planner Setup x.x.x.exe` from the latest release.
+2. Run the installer.
+3. If Windows SmartScreen appears, select **More info**.
+4. Click **Run anyway**.
+5. Complete the installation process.
 
-## Data model
-
-Stored at `app.getPath('userData')/calendar.db`.
-
-**events**
-
-| column | type | notes |
-| --- | --- | --- |
-| `id` | TEXT | UUID primary key (v1.0 integer ids migrate to `legacy-N`) |
-| `title` | TEXT | required |
-| `description` | TEXT | notes/details |
-| `date` | TEXT | `YYYY-MM-DD` (indexed) |
-| `all_day` | INTEGER | `0`/`1` |
-| `start_time` / `end_time` | TEXT | `HH:mm`, `NULL` when all-day |
-| `category` | TEXT | category `value` (preset or custom) |
-| `color` | TEXT | hex color used for the badge |
-| `created_at` / `updated_at` | TEXT | ISO timestamps (drive merge conflicts) |
-
-**tasks**
-
-| column | type | notes |
-| --- | --- | --- |
-| `id` | TEXT | UUID primary key |
-| `text` | TEXT | required |
-| `completed` | INTEGER | `0`/`1` |
-| `list` | TEXT | `today` \| `upcoming` \| `notes` (indexed) |
-| `due_date` | TEXT | optional `YYYY-MM-DD` (indexed) |
-| `created_at` / `updated_at` | TEXT | ISO timestamps |
-
-**categories** — user-defined color tags: `id` (UUID), `value` (unique slug),
-`label`, `color`, timestamps. The four presets (Work/Personal/Important/Other)
-are seeded on first run.
-
-**settings** — key/value store: `theme`, `accent`, `glassIntensity`,
-`weekStart`, `sidebarVisible`, `updateChannel`.
-
-**tombstones** — `kind` (`event`/`task`) + `id` + `deleted_at`; they make
-deletions propagate through share-code merges instead of resurrecting rows.
-
-A `perky1:` snapshot bundles all five (minus settings, which are never
-clobbered) plus a schema `version` for forward compatibility.
-
-## Getting started
-
-```bash
-npm install          # also rebuilds better-sqlite3 against Electron's ABI
-npm run dev          # launch the app with hot reload
-```
-
-### Scripts
-
-| script | description |
-| --- | --- |
-| `npm run dev` | run in development with HMR |
-| `npm run build` | compile main, preload and renderer into `out/` |
-| `npm start` | preview the production build |
-| `npm run typecheck` | typecheck both the Node and web projects |
-| `npm run rebuild` | manually rebuild the native `better-sqlite3` module |
-| `npm run build:mac` | package a macOS `.dmg` + `.zip` |
-| `npm run build:win` | package a Windows NSIS installer |
-| `npm run build:linux` | package Linux `AppImage` + `deb` + `rpm` |
-| `npm run build:all` | package for all three platforms |
-
-Packaged installers are written to `dist/`.
-
-### Custom app icon
-
-The icon ships from a single 1024×1024 source file:
-
-1. Replace `build/icon-source.png` with your own artwork
-   (square PNG, at least 1024×1024, transparent background recommended).
-2. Run `npm run icons` — this regenerates everything from that source:
-   - `build/icons/mac/icon.icns` (macOS dock / Finder / DMG)
-   - `build/icons/win/icon.ico` (Windows installer, taskbar, shortcuts)
-   - `build/icons/png/*.png` (Linux AppImage/deb/rpm hicolor set)
-   - `resources/icon.png` (Linux dev-window/taskbar runtime icon)
-3. Re-run `npm run build` + the platform packager
-   (`build:mac` / `build:win` / `build:linux`) and confirm your artwork
-   shows in the dock/taskbar before committing.
-
-The paths are wired in `electron-builder.yml` (`mac.icon`, `win.icon`,
-`linux.icon`) and `src/main/index.ts` (`windowIcon()` returns the
-`resources/icon.png` runtime icon on Linux only).
-
-### Requirements
-
-- Node.js 18+
-- A C++ toolchain for building `better-sqlite3`:
-  - macOS: Xcode Command Line Tools (`xcode-select --install`)
-  - Windows: Visual Studio Build Tools
-  - Linux: `build-essential`, `python3`, `libnss3`, `libatk1.0-0`, `libgtk-3-0`
-    (runtime libs for Electron) and `rpm`/`dpkg` tooling only if packaging locally.
-  `electron-builder install-app-deps` runs automatically after `npm install`.
-
-## Linux specifics
-
-- Install via `sudo dpkg -i perky-planner_1.0.0_amd64.deb`, `sudo rpm -i perky-planner-1.0.0.x86_64.rpm`
-  or by making the `AppImage` executable and running it directly.
-- The database lives under `~/.config/perky-planner/calendar.db`.
-- A `.desktop` entry (`StartupWMClass: perky-planner`) is installed by the deb/rpm packages
-  so the app integrates with GNOME, KDE and other desktop environments.
-
-## Notes
-
-- `better-sqlite3` is a native module. If you switch Electron versions, re-run
-  `npm run rebuild`.
-- The renderer never touches Node APIs directly; everything flows through the typed
-  `window.calendar` bridge defined in `src/preload/index.ts`.
+### macOS
+1. Download the `.dmg` from the latest release.
+2. Open the downloaded file.
+3. Drag `Perky Planner.app` into the Applications folder.
+4. Open Terminal and run the following command to clear the quarantine attribute:
+   ```bash
+   xattr -c /Applications/Perky\ Planner.app
