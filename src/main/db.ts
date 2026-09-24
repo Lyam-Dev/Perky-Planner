@@ -8,6 +8,8 @@ import type {
   CalendarEvent,
   Category,
   CategoryInput,
+  Deadline,
+  DeadlineInput,
   EventInput,
   CalendarSnapshot,
   ImportMode,
@@ -16,7 +18,7 @@ import type {
   TaskInput,
   Tombstone
 } from '../shared/types'
-import { CATEGORY_PRESETS, DEFAULT_SETTINGS } from '../shared/types'
+import { CATEGORY_PRESETS, DEFAULT_SETTINGS, normalizeDeadlineRange } from '../shared/types'
 
 /**
  * Local persistence layer backed by SQLite (better-sqlite3).
@@ -65,6 +67,18 @@ interface CategoryRow {
   updated_at: string
 }
 
+interface DeadlineRow {
+  id: string
+  title: string
+  start_date: string
+  end_date: string
+  notes: string
+  category: string
+  color: string
+  created_at: string
+  updated_at: string
+}
+
 function rowToEvent(row: EventRow): CalendarEvent {
   return {
     id: row.id,
@@ -98,6 +112,20 @@ function rowToCategory(row: CategoryRow): Category {
     id: row.id,
     value: row.value,
     label: row.label,
+    color: row.color,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }
+}
+
+function rowToDeadline(row: DeadlineRow): Deadline {
+  return {
+    id: row.id,
+    title: row.title,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    notes: row.notes,
+    category: row.category,
     color: row.color,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -165,6 +193,20 @@ export function initDatabase(): void {
       updated_at TEXT    NOT NULL
     );
 
+    -- Multi-day deadlines: one inclusive range per row, drawn as a colour bar
+    -- spanning start_date..end_date in the month grid.
+    CREATE TABLE IF NOT EXISTS deadlines (
+      id         TEXT    PRIMARY KEY,
+      title      TEXT    NOT NULL,
+      start_date TEXT    NOT NULL,
+      end_date   TEXT    NOT NULL,
+      notes      TEXT    NOT NULL DEFAULT '',
+      category   TEXT    NOT NULL DEFAULT 'other',
+      color      TEXT    NOT NULL DEFAULT '#4f46e5',
+      created_at TEXT    NOT NULL,
+      updated_at TEXT    NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       key        TEXT PRIMARY KEY,
       value      TEXT NOT NULL,
@@ -182,6 +224,8 @@ export function initDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
     CREATE INDEX IF NOT EXISTS idx_tasks_due   ON tasks(due_date);
     CREATE INDEX IF NOT EXISTS idx_tasks_list  ON tasks(list);
+    -- Range queries filter on both endpoints, so index them together.
+    CREATE INDEX IF NOT EXISTS idx_deadlines_range ON deadlines(start_date, end_date);
   `)
 
   migrateIntegerIds()
@@ -472,6 +516,109 @@ export function deleteTask(id: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Deadlines CRUD
+// ---------------------------------------------------------------------------
+
+/** Guards against non-ISO date strings reaching the range index. */
+function assertIsoDate(value: string, field: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(
+      `Invalid deadline ${field}: expected a YYYY-MM-DD date, received ${JSON.stringify(value)}`
+    )
+  }
+}
+
+/** Normalises + validates the two endpoints of a deadline range. */
+function deadlineRange(input: DeadlineInput): { startDate: string; endDate: string } {
+  const range = normalizeDeadlineRange(input.startDate, input.endDate)
+  assertIsoDate(range.startDate, 'startDate')
+  assertIsoDate(range.endDate, 'endDate')
+  return range
+}
+
+export function listDeadlines(): Deadline[] {
+  const rows = db
+    .prepare('SELECT * FROM deadlines ORDER BY start_date ASC, end_date ASC')
+    .all() as DeadlineRow[]
+  return rows.map(rowToDeadline)
+}
+
+/**
+ * Deadlines overlapping an inclusive range.
+ *
+ * A deadline overlaps when it starts on or before the range ends *and* ends on
+ * or after the range begins — so a bar that began in a previous month still
+ * shows up on every day of the visible grid that it covers.
+ */
+export function listDeadlinesByRange(start: string, end: string): Deadline[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM deadlines
+        WHERE start_date <= ? AND end_date >= ?
+        ORDER BY start_date ASC, end_date ASC`
+    )
+    .all(end, start) as DeadlineRow[]
+  return rows.map(rowToDeadline)
+}
+
+export function createDeadline(input: DeadlineInput): Deadline {
+  const id = randomUUID()
+  const now = nowIso()
+  const { startDate, endDate } = deadlineRange(input)
+  db.prepare(
+    `INSERT INTO deadlines
+        (id, title, start_date, end_date, notes, category, color, created_at, updated_at)
+     VALUES
+        (@id, @title, @startDate, @endDate, @notes, @category, @color, @createdAt, @updatedAt)`
+  ).run({
+    id,
+    title: input.title,
+    startDate,
+    endDate,
+    notes: input.notes ?? '',
+    category: input.category,
+    color: input.color,
+    createdAt: now,
+    updatedAt: now
+  })
+
+  const row = db.prepare('SELECT * FROM deadlines WHERE id = ?').get(id) as DeadlineRow
+  return rowToDeadline(row)
+}
+
+export function updateDeadline(id: string, input: DeadlineInput): Deadline {
+  const { startDate, endDate } = deadlineRange(input)
+  db.prepare(
+    `UPDATE deadlines SET
+        title = @title,
+        start_date = @startDate,
+        end_date = @endDate,
+        notes = @notes,
+        category = @category,
+        color = @color,
+        updated_at = @updatedAt
+     WHERE id = @id`
+  ).run({
+    id,
+    title: input.title,
+    startDate,
+    endDate,
+    notes: input.notes ?? '',
+    category: input.category,
+    color: input.color,
+    updatedAt: nowIso()
+  })
+
+  const row = db.prepare('SELECT * FROM deadlines WHERE id = ?').get(id) as DeadlineRow
+  return rowToDeadline(row)
+}
+
+export function deleteDeadline(id: string): void {
+  recordTombstone('deadline', id)
+  db.prepare('DELETE FROM deadlines WHERE id = ?').run(id)
+}
+
+// ---------------------------------------------------------------------------
 // Categories CRUD
 // ---------------------------------------------------------------------------
 
@@ -515,6 +662,11 @@ export function deleteCategory(id: string): void {
     if (row) {
       // Reassign affected events to `other` and bump them so merges converge.
       db.prepare(`UPDATE events SET category = 'other', updated_at = ? WHERE category = ?`).run(
+        nowIso(),
+        row.value
+      )
+      // Deadlines share the category palette, so they move with the events.
+      db.prepare(`UPDATE deadlines SET category = 'other', updated_at = ? WHERE category = ?`).run(
         nowIso(),
         row.value
       )
@@ -598,6 +750,7 @@ export function buildSnapshot(): CalendarSnapshot {
     appVersion: app.getVersion(),
     events: listEvents(),
     tasks: listTasks(),
+    deadlines: listDeadlines(),
     categories: listCategories(),
     tombstones: listTombstones(),
     settings: getSettings()
@@ -700,6 +853,47 @@ function upsertTaskRow(task: Task): UpsertOutcome {
   return 'added'
 }
 
+/** Last-write-wins merge for one deadline. */
+function upsertDeadlineRow(deadline: Deadline): UpsertOutcome {
+  assertImportableRow(deadline.id, deadline.updatedAt, 'deadline')
+  // `deadlineRange` also normalises, so a hand-edited code cannot create a
+  // backwards range (which would never match a range query).
+  const { startDate, endDate } = deadlineRange(deadline)
+  const existing = db.prepare('SELECT * FROM deadlines WHERE id = ?').get(deadline.id) as
+    | DeadlineRow
+    | undefined
+
+  const params = {
+    id: deadline.id,
+    title: deadline.title,
+    startDate,
+    endDate,
+    notes: deadline.notes ?? '',
+    category: deadline.category,
+    color: deadline.color,
+    createdAt: deadline.createdAt,
+    updatedAt: deadline.updatedAt
+  }
+
+  if (existing) {
+    if (existing.updated_at >= deadline.updatedAt) return 'skipped'
+    db.prepare(
+      `UPDATE deadlines SET title = @title, start_date = @startDate, end_date = @endDate,
+          notes = @notes, category = @category, color = @color, updated_at = @updatedAt
+       WHERE id = @id`
+    ).run(params)
+    return 'updated'
+  }
+
+  db.prepare(
+    `INSERT INTO deadlines
+        (id, title, start_date, end_date, notes, category, color, created_at, updated_at)
+     VALUES
+        (@id, @title, @startDate, @endDate, @notes, @category, @color, @createdAt, @updatedAt)`
+  ).run(params)
+  return 'added'
+}
+
 /** Last-write-wins merge for one category. */
 function upsertCategoryRow(category: Category): UpsertOutcome {
   assertImportableRow(category.id, category.updatedAt, 'category')
@@ -736,8 +930,11 @@ function upsertCategoryRow(category: Category): UpsertOutcome {
   return 'added'
 }
 
+/** Every table a tombstone can target. */
+type TombstoneTable = 'events' | 'tasks' | 'categories' | 'deadlines'
+
 /** Looks up a row's `updated_at`, or null when the row does not exist. */
-function rowUpdatedAt(table: 'events' | 'tasks' | 'categories', id: string): string | null {
+function rowUpdatedAt(table: TombstoneTable, id: string): string | null {
   const row = db.prepare(`SELECT updated_at FROM ${table} WHERE id = ?`).get(id) as
     | { updated_at: string }
     | undefined
@@ -749,15 +946,17 @@ function rowUpdatedAt(table: 'events' | 'tasks' | 'categories', id: string): str
  * the local copy — a newer local edit wins, which resurrects the row.
  */
 function applyTombstones(tombstones: Tombstone[]): number {
-  const tableOf: Record<Tombstone['kind'], 'events' | 'tasks' | 'categories'> = {
+  const tableOf: Record<Tombstone['kind'], TombstoneTable> = {
     event: 'events',
     task: 'tasks',
-    category: 'categories'
+    category: 'categories',
+    deadline: 'deadlines'
   }
   const statements = {
     events: db.prepare('DELETE FROM events WHERE id = ?'),
     tasks: db.prepare('DELETE FROM tasks WHERE id = ?'),
-    categories: db.prepare('DELETE FROM categories WHERE id = ?')
+    categories: db.prepare('DELETE FROM categories WHERE id = ?'),
+    deadlines: db.prepare('DELETE FROM deadlines WHERE id = ?')
   }
 
   let applied = 0
@@ -783,6 +982,7 @@ function clearAllData(): void {
   db.exec(`
     DELETE FROM events;
     DELETE FROM tasks;
+    DELETE FROM deadlines;
     DELETE FROM categories;
     DELETE FROM tombstones;
   `)
@@ -808,6 +1008,8 @@ export function importSnapshot(snapshot: CalendarSnapshot, mode: ImportMode): Im
     eventsUpdated: 0,
     tasksAdded: 0,
     tasksUpdated: 0,
+    deadlinesAdded: 0,
+    deadlinesUpdated: 0,
     categoriesAdded: 0,
     categoriesUpdated: 0,
     tombstonesApplied: 0,
@@ -833,6 +1035,13 @@ export function importSnapshot(snapshot: CalendarSnapshot, mode: ImportMode): Im
       const outcome = upsertTaskRow(task)
       if (outcome === 'added') result.tasksAdded++
       else if (outcome === 'updated') result.tasksUpdated++
+    }
+
+    // `?? []` keeps codes exported before deadlines existed importable.
+    for (const deadline of snapshot.deadlines ?? []) {
+      const outcome = upsertDeadlineRow(deadline)
+      if (outcome === 'added') result.deadlinesAdded++
+      else if (outcome === 'updated') result.deadlinesUpdated++
     }
 
     result.tombstonesApplied = applyTombstones(snapshot.tombstones ?? [])

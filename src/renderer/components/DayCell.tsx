@@ -1,11 +1,30 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CalendarEvent } from '@shared/types'
 import type { DayCellData } from '../lib/dateEngine'
 import { formatTimeRange } from '../lib/dateEngine'
+import {
+  CELL_GAP,
+  CELL_PADDING,
+  DAY_NUMBER_HEIGHT,
+  EVENT_CHIP_HEIGHT,
+  EVENT_LIST_GAP,
+  EVENT_OVERFLOW_HEIGHT,
+  dayCellEventCapacity,
+  dayCellEventSpace,
+  eventOverflowLabel
+} from '../lib/calendarCellLayout'
 
 interface DayCellProps {
   cell: DayCellData
   events: CalendarEvent[]
+  /**
+   * Vertical space (px) to keep clear for deadline bars drawn over this row.
+   * Comes from `layoutWeekDeadlines` so every cell in a week reserves the same
+   * band and the absolute bars line up across the row.
+   */
+  deadlineBandHeight?: number
+  /** Deadlines omitted because the row has no room for another lane. */
+  deadlineOverflow?: number
   /** Single click: open the quick add/edit modal for this day. */
   onSelect: (cell: DayCellData) => void
   /** Double click: open the full 24-hour day view for this day. */
@@ -20,14 +39,52 @@ function buildTooltip(ev: CalendarEvent): string {
 }
 
 /**
- * A single day cell in the calendar grid. Shows the day number and up to three
- * event chips (with a "+N more" indicator). A single click opens the event
- * modal; a double click opens the full 24-hour day view. Adjacent-month days
- * are dimmed.
+ * A single day cell in the calendar grid. Renders only the events that fit its
+ * actual measured height and keeps an overflow count inside the cell. A single
+ * click on any item opens a scrollable EventModal whose “On this day” list
+ * contains every hidden item, so the compact month cell is not a dead end. A
+ * double click opens the full 24-hour day view. Adjacent-month days are dimmed.
  */
-export function DayCell({ cell, events, onSelect, onOpenDay }: DayCellProps): JSX.Element {
-  const visible = events.slice(0, 3)
-  const overflow = events.length - visible.length
+export function DayCell({
+  cell,
+  events,
+  deadlineBandHeight = 0,
+  deadlineOverflow = 0,
+  onSelect,
+  onOpenDay
+}: DayCellProps): JSX.Element {
+  const cellRef = useRef<HTMLButtonElement | null>(null)
+  const [cellHeight, setCellHeight] = useState<number | null>(null)
+
+  // Measure the row itself rather than guessing from the window height. The
+  // parent grid gives all six rows a flex share, and this also follows any
+  // future header wrapping or window resize.
+  useLayoutEffect(() => {
+    const element = cellRef.current
+    if (!element) return
+
+    const measure = () => {
+      const nextHeight = element.clientHeight
+      setCellHeight((previous) => (previous === nextHeight ? previous : nextHeight))
+    }
+    measure()
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure)
+      return () => window.removeEventListener('resize', measure)
+    }
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [cell.iso, deadlineBandHeight])
+
+  const eventSpace = dayCellEventSpace(cellHeight ?? 0, deadlineBandHeight)
+  const capacity = dayCellEventCapacity(events.length, eventSpace)
+  const visible = events.slice(0, capacity.visibleCount)
+  const overflow = capacity.hiddenCount
+  const overflowInHeader = capacity.overflowPlacement === 'header'
+  const showDayViewHint = cellHeight == null || cellHeight >= 72
 
   // Disambiguate single vs. double click. Waiting a short beat before firing
   // "select" prevents the modal from covering the cell and swallowing the
@@ -58,19 +115,25 @@ export function DayCell({ cell, events, onSelect, onOpenDay }: DayCellProps): JS
 
   return (
     <button
+      ref={cellRef}
       type="button"
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      style={{ padding: CELL_PADDING, rowGap: CELL_GAP }}
+
       title="Click to add an event · Double-click for the day view"
       className={[
-        'group relative flex h-full w-full min-h-[92px] flex-col gap-1 border-b border-r border-surface-border p-1.5 text-left transition-all duration-200',
+        'group relative flex h-full w-full min-h-0 flex-col overflow-hidden border-b border-r border-surface-border text-left transition-all duration-200',
         cell.inCurrentMonth
           ? 'bg-surface hover:bg-brand-50/60 hover:shadow-[inset_0_0_0_2px_rgba(99,102,241,0.25)]'
           : 'bg-surface-muted/60 hover:bg-brand-50/40',
         'hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-inset active:scale-[0.99]'
       ].join(' ')}
     >
-      <div className="flex items-center justify-between">
+      <div
+        style={{ height: DAY_NUMBER_HEIGHT }}
+        className="flex flex-shrink-0 items-center justify-between"
+      >
         <span
           className={[
             'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
@@ -84,16 +147,56 @@ export function DayCell({ cell, events, onSelect, onOpenDay }: DayCellProps): JS
           {cell.day}
         </span>
         {events.length > 0 && (
-          <span className="text-[10px] font-medium text-content-subtle">{events.length}</span>
+          <div className="flex min-w-0 items-center gap-1.5">
+            {deadlineOverflow > 0 && (
+              <span
+                className="inline-flex flex-shrink-0 items-center text-[9px] font-semibold text-content-subtle"
+                title={`${deadlineOverflow} more deadline${deadlineOverflow === 1 ? '' : 's'} this week`}
+                aria-label={`${deadlineOverflow} more deadlines this week`}
+              >
+                ⚑+{deadlineOverflow}
+              </span>
+            )}
+            <span
+              className="text-[10px] font-medium text-content-subtle"
+              title={`${events.length} event${events.length === 1 ? '' : 's'} on this day`}
+              aria-label={`${events.length} events on this day`}
+            >
+              {overflowInHeader ? `+${overflow}` : events.length}
+            </span>
+          </div>
+        )}
+        {events.length === 0 && deadlineOverflow > 0 && (
+          <span
+            className="text-[9px] font-semibold text-content-subtle"
+            title={`${deadlineOverflow} more deadline${deadlineOverflow === 1 ? '' : 's'} this week`}
+            aria-label={`${deadlineOverflow} more deadlines this week`}
+          >
+            ⚑+{deadlineOverflow}
+          </span>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+      {/* Space held for the deadline bars drawn over this week row. */}
+      {deadlineBandHeight > 0 && (
+        <div aria-hidden style={{ height: deadlineBandHeight }} className="flex-shrink-0" />
+      )}
+
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        style={{ gap: EVENT_LIST_GAP }}
+      >
         {visible.map((ev, i) => (
           <div
             key={ev.id}
-            style={{ backgroundColor: `${ev.color}1a`, color: ev.color, animationDelay: `${i * 40}ms` }}
-            className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] leading-tight animate-chip-in transition-transform duration-150 hover:scale-105"
+            style={{
+              backgroundColor: `${ev.color}1a`,
+              color: ev.color,
+              animationDelay: `${i * 40}ms`,
+              height: EVENT_CHIP_HEIGHT,
+              flexShrink: 0
+            }}
+            className="flex items-center gap-1 truncate rounded px-1 text-[10px] leading-tight animate-chip-in transition-transform duration-150 hover:scale-105"
             title={buildTooltip(ev)}
           >
             <span
@@ -103,15 +206,22 @@ export function DayCell({ cell, events, onSelect, onOpenDay }: DayCellProps): JS
             <span className="truncate font-medium">{ev.title || 'Untitled'}</span>
           </div>
         ))}
-        {overflow > 0 && (
-          <span className="px-1 text-[10px] font-medium text-content-subtle">+{overflow} more</span>
+        {capacity.overflowPlacement === 'row' && overflow > 0 && (
+          <span
+            className="flex flex-shrink-0 items-center truncate px-1 text-[10px] font-medium leading-none text-content-subtle"
+            style={{ height: EVENT_OVERFLOW_HEIGHT }}
+            title={`${overflow} more event${overflow === 1 ? '' : 's'} on this day`}
+          >
+            {eventOverflowLabel(overflow)}
+          </span>
         )}
       </div>
 
-      {/* Hover affordance for the day view */}
-      <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-scrim/70 px-1 py-0.5 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-        Day view
-      </span>
+      {showDayViewHint && (
+        <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-scrim/70 px-1 py-0.5 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+          Day view
+        </span>
+      )}
     </button>
   )
 }

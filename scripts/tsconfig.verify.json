@@ -1,0 +1,28 @@
+{
+  "_comment": "Dev-only: compiles the persistence layer plus the pure renderer layout helpers to CommonJS so scripts/verify-deadlines.cjs can exercise the REAL modules inside an Electron process. Not referenced by electron-vite (tsconfig.node.json / tsconfig.web.json use explicit include globs), so it never affects a production build.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "lib": ["ES2022", "DOM"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmitOnError": false,
+    "resolveJsonModule": true,
+    "outDir": "/tmp/perky-deadline-test",
+    "rootDir": "../src",
+    "baseUrl": "..",
+    "paths": {
+      "@shared/*": ["src/shared/*"]
+    },
+    "types": ["node", "electron"]
+  },
+  "files": [
+    "../src/main/db.ts",
+    "../src/main/share.ts",
+    "../src/renderer/lib/dateEngine.ts",
+    "../src/renderer/lib/deadlineLayout.ts",
+    "../src/renderer/lib/calendarCellLayout.ts"
+  ]
+}

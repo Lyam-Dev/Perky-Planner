@@ -4,6 +4,7 @@ import type {
   AppSettings,
   CalendarApi,
   CategoryInput,
+  DeadlineInput,
   EventInput,
   ImportMode,
   TaskInput,
@@ -32,6 +33,15 @@ const api: CalendarApi = {
       ipcRenderer.invoke(IPC.TASKS_UPDATE, id, input),
     toggle: (id: string) => ipcRenderer.invoke(IPC.TASKS_TOGGLE, id),
     remove: (id: string) => ipcRenderer.invoke(IPC.TASKS_REMOVE, id)
+  },
+  deadlines: {
+    list: () => ipcRenderer.invoke(IPC.DEADLINES_LIST),
+    listByRange: (start: string, end: string) =>
+      ipcRenderer.invoke(IPC.DEADLINES_LIST_BY_RANGE, start, end),
+    create: (input: DeadlineInput) => ipcRenderer.invoke(IPC.DEADLINES_CREATE, input),
+    update: (id: string, input: DeadlineInput) =>
+      ipcRenderer.invoke(IPC.DEADLINES_UPDATE, id, input),
+    remove: (id: string) => ipcRenderer.invoke(IPC.DEADLINES_REMOVE, id)
   },
   categories: {
     list: () => ipcRenderer.invoke(IPC.CATEGORIES_LIST),

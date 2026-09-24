@@ -51,6 +51,53 @@ export interface Task {
 /** Fields accepted when creating or updating a task. */
 export type TaskInput = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>
 
+/**
+ * A deadline that spans a continuous timeframe across the calendar.
+ *
+ * Unlike an event (which is pinned to a single day), a deadline covers every
+ * day from `startDate` to `endDate` inclusive and is drawn as a colour bar
+ * stretching across those days in the month grid.
+ */
+export interface Deadline {
+  id: UUID
+  title: string
+  /** ISO date string `YYYY-MM-DD` — first day the deadline covers. */
+  startDate: string
+  /** ISO date string `YYYY-MM-DD` — last day covered (inclusive). */
+  endDate: string
+  notes: string
+  category: EventCategory
+  /** Hex color used for the bar. */
+  color: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** Fields accepted when creating or updating a deadline. */
+export type DeadlineInput = Omit<Deadline, 'id' | 'createdAt' | 'updatedAt'>
+
+/**
+ * Orders a deadline's endpoints and guarantees they are valid ISO dates.
+ *
+ * The UI lets users pick the two ends in either order (and may leave the end
+ * blank for a single-day deadline), so normalisation happens in one place
+ * rather than at every call site.
+ */
+export function normalizeDeadlineRange(startDate: string, endDate: string): {
+  startDate: string
+  endDate: string
+} {
+  const start = startDate.trim()
+  const end = endDate.trim() || start
+  // ISO `YYYY-MM-DD` strings sort correctly with a plain lexicographic compare.
+  return start <= end ? { startDate: start, endDate: end } : { startDate: end, endDate: start }
+}
+
+/** True when a deadline covers the given ISO date (inclusive on both ends). */
+export function deadlineSpansDate(deadline: Deadline, iso: string): boolean {
+  return deadline.startDate <= iso && iso <= deadline.endDate
+}
+
 /** A user-defined event category with a display label and badge color. */
 export interface Category {
   id: UUID
@@ -150,7 +197,7 @@ export interface UpdateInfo {
 
 /** One tombstone marking a deleted row so deletes merge across devices. */
 export interface Tombstone {
-  kind: 'event' | 'task' | 'category'
+  kind: 'event' | 'task' | 'category' | 'deadline'
   id: UUID
   deletedAt: string
 }
@@ -163,6 +210,11 @@ export interface CalendarSnapshot {
   appVersion: string
   events: CalendarEvent[]
   tasks: Task[]
+  /**
+   * Multi-day deadlines. Optional so codes produced before deadlines existed
+   * (the shipped `1.0.0v` build) still decode and import cleanly.
+   */
+  deadlines?: Deadline[]
   categories: Category[]
   tombstones: Tombstone[]
   settings: Partial<AppSettings>
@@ -176,6 +228,8 @@ export interface ImportResult {
   eventsUpdated: number
   tasksAdded: number
   tasksUpdated: number
+  deadlinesAdded: number
+  deadlinesUpdated: number
   categoriesAdded: number
   categoriesUpdated: number
   tombstonesApplied: number
@@ -190,6 +244,9 @@ export type HistoryEntry =
   | { type: 'task.create'; after: Task }
   | { type: 'task.update'; before: Task; after: Task }
   | { type: 'task.delete'; before: Task }
+  | { type: 'deadline.create'; after: Deadline }
+  | { type: 'deadline.update'; before: Deadline; after: Deadline }
+  | { type: 'deadline.delete'; before: Deadline }
   | { type: 'category.create'; after: Category }
   | { type: 'category.update'; before: Category; after: Category }
   | { type: 'category.delete'; before: Category }
@@ -211,6 +268,14 @@ export interface CalendarApi {
     create(input: TaskInput): Promise<Task>
     update(id: UUID, input: Partial<TaskInput>): Promise<Task>
     toggle(id: UUID): Promise<Task>
+    remove(id: UUID): Promise<void>
+  }
+  deadlines: {
+    list(): Promise<Deadline[]>
+    /** Deadlines overlapping the inclusive `YYYY-MM-DD` range. */
+    listByRange(start: string, end: string): Promise<Deadline[]>
+    create(input: DeadlineInput): Promise<Deadline>
+    update(id: UUID, input: DeadlineInput): Promise<Deadline>
     remove(id: UUID): Promise<void>
   }
   categories: {
@@ -258,6 +323,11 @@ export const IPC = {
   TASKS_UPDATE: 'tasks:update',
   TASKS_TOGGLE: 'tasks:toggle',
   TASKS_REMOVE: 'tasks:remove',
+  DEADLINES_LIST: 'deadlines:list',
+  DEADLINES_LIST_BY_RANGE: 'deadlines:listByRange',
+  DEADLINES_CREATE: 'deadlines:create',
+  DEADLINES_UPDATE: 'deadlines:update',
+  DEADLINES_REMOVE: 'deadlines:remove',
   CATEGORIES_LIST: 'categories:list',
   CATEGORIES_CREATE: 'categories:create',
   CATEGORIES_UPDATE: 'categories:update',

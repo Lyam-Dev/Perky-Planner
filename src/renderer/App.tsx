@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { EventInput, TaskList, UpdateInfo } from '@shared/types'
+import type { DeadlineInput, EventInput, TaskList, UpdateInfo } from '@shared/types'
+import { deadlineSpansDate } from '@shared/types'
 import { useEvents } from './hooks/useEvents'
 import { useTasks } from './hooks/useTasks'
+import { useDeadlines } from './hooks/useDeadlines'
 import { useCategories } from './hooks/useCategories'
 import { useSettings } from './hooks/useSettings'
 import { useHistory } from './hooks/useHistory'
 import { CalendarGrid } from './components/CalendarGrid'
 import { DayView } from './components/DayView'
+import { DeadlineModal } from './components/DeadlineModal'
 import { EventModal } from './components/EventModal'
 import { TaskSidebar } from './components/TaskSidebar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { CalendarIcon, GearIcon, UndoIcon } from './components/Icons'
-import { startOfToday, type DayCellData } from './lib/dateEngine'
+import { startOfToday, toISODate, type DayCellData } from './lib/dateEngine'
 
 /**
  * Root application shell. Owns the displayed month, day/modal state, global
@@ -39,7 +42,18 @@ export function App(): JSX.Element {
   } = useCategories()
   const { events, refresh: refreshEvents, createEvent, updateEvent, removeEvent } = useEvents()
   const { tasks, refresh: refreshTasks, createTask, toggleTask, removeTask } = useTasks()
+  const {
+    deadlines,
+    refresh: refreshDeadlines,
+    createDeadline,
+    updateDeadline,
+    removeDeadline
+  } = useDeadlines()
   const { canUndo, record, undo } = useHistory()
+
+  /** Deadline modal: closed, creating, or editing a specific deadline. */
+  const [deadlineOpen, setDeadlineOpen] = useState(false)
+  const [editingDeadlineId, setEditingDeadlineId] = useState<string | null>(null)
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo>({ status: 'idle' })
 
@@ -74,6 +88,28 @@ export function App(): JSX.Element {
     () => (editingId != null ? events.find((e) => e.id === editingId) ?? null : null),
     [events, editingId]
   )
+
+  const editingDeadline = useMemo(
+    () =>
+      editingDeadlineId != null ? deadlines.find((d) => d.id === editingDeadlineId) ?? null : null,
+    [deadlines, editingDeadlineId]
+  )
+
+  /** Deadlines whose timeframe covers the day shown in the 24-hour view. */
+  const dayViewDeadlines = useMemo(
+    () => (dayViewDate ? deadlines.filter((d) => deadlineSpansDate(d, dayViewDate)) : []),
+    [deadlines, dayViewDate]
+  )
+
+  /**
+   * Seed day for a new deadline: today when today is on screen, otherwise the
+   * 1st of the displayed month — so the new bar is always visible immediately.
+   */
+  const deadlineSeedDate = useMemo(() => {
+    const t = startOfToday()
+    const todayInView = t.getFullYear() === year && t.getMonth() === month
+    return todayInView ? toISODate(t) : toISODate(new Date(year, month, 1))
+  }, [year, month])
 
   const handleSelectDay = useCallback((cell: DayCellData) => {
     setSelectedDate(cell.iso)
@@ -152,12 +188,51 @@ export function App(): JSX.Element {
     [tasks, removeTask, record]
   )
 
+  /** Open the modal to create a brand-new deadline. */
+  const handleCreateDeadline = useCallback(() => {
+    setEditingDeadlineId(null)
+    setDeadlineOpen(true)
+  }, [])
+
+  /** Open the modal on an existing deadline (usually from one of its bars). */
+  const handleEditDeadline = useCallback((id: string) => {
+    setEditingDeadlineId(id)
+    setDeadlineOpen(true)
+  }, [])
+
+  const handleSaveDeadline = useCallback(
+    async (input: DeadlineInput, id: string | null) => {
+      if (id != null) {
+        const before = deadlines.find((d) => d.id === id)
+        const after = await updateDeadline(id, input)
+        if (before) record({ type: 'deadline.update', before, after })
+      } else {
+        const created = await createDeadline(input)
+        record({ type: 'deadline.create', after: created })
+      }
+      setDeadlineOpen(false)
+      setEditingDeadlineId(null)
+    },
+    [deadlines, createDeadline, updateDeadline, record]
+  )
+
+  const handleDeleteDeadline = useCallback(
+    async (id: string) => {
+      const before = deadlines.find((d) => d.id === id)
+      await removeDeadline(id)
+      if (before) record({ type: 'deadline.delete', before })
+      setDeadlineOpen(false)
+      setEditingDeadlineId(null)
+    },
+    [deadlines, removeDeadline, record]
+  )
+
   /** Undo the latest mutation and resync every data hook. */
   const handleUndo = useCallback(async () => {
     const undone = await undo()
     if (!undone) return
-    await Promise.all([refreshEvents(), refreshTasks(), refreshCategories()])
-  }, [undo, refreshEvents, refreshTasks, refreshCategories])
+    await Promise.all([refreshEvents(), refreshTasks(), refreshDeadlines(), refreshCategories()])
+  }, [undo, refreshEvents, refreshTasks, refreshDeadlines, refreshCategories])
 
   const handleToggleSidebar = useCallback(() => {
     updateSetting('sidebarVisible', !sidebarVisible)
@@ -249,11 +324,16 @@ export function App(): JSX.Element {
             <DayView
               date={dayViewDate}
               events={dayViewEvents}
+              deadlines={dayViewDeadlines}
               onBack={() => setDayViewDate(null)}
               onAddEvent={handleAddFromDayView}
               onEditEvent={(id) => {
                 setSelectedDate(dayViewDate)
                 setEditingId(id)
+              }}
+              onEditDeadline={(id) => {
+                setDayViewDate(null)
+                handleEditDeadline(id)
               }}
             />
           ) : (
@@ -261,6 +341,7 @@ export function App(): JSX.Element {
               year={year}
               month={month}
               events={events}
+              deadlines={deadlines}
               weekStart={settings.weekStart}
               onChangeMonth={(y, m) => {
                 setYear(y)
@@ -268,6 +349,8 @@ export function App(): JSX.Element {
               }}
               onSelectDay={handleSelectDay}
               onOpenDay={handleOpenDay}
+              onCreateDeadline={handleCreateDeadline}
+              onEditDeadline={handleEditDeadline}
             />
           )}
         </main>
@@ -296,6 +379,21 @@ export function App(): JSX.Element {
           onSave={handleSave}
           onDelete={handleDelete}
           onEdit={(id) => setEditingId(id)}
+        />
+      )}
+
+      {/* Deadline modal */}
+      {deadlineOpen && (
+        <DeadlineModal
+          editing={editingDeadline}
+          initialDate={editingDeadline?.startDate ?? deadlineSeedDate}
+          categories={categories}
+          onClose={() => {
+            setDeadlineOpen(false)
+            setEditingDeadlineId(null)
+          }}
+          onSave={handleSaveDeadline}
+          onDelete={handleDeleteDeadline}
         />
       )}
 

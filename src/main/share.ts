@@ -39,7 +39,12 @@ function isSnapshot(value: unknown): value is CalendarSnapshot {
     Array.isArray(candidate.events) &&
     Array.isArray(candidate.tasks) &&
     Array.isArray(candidate.categories) &&
-    Array.isArray(candidate.tombstones)
+    Array.isArray(candidate.tombstones) &&
+    // Deadlines are newer than the rest of the format: a code exported by the
+    // original 1.0.0 build has no such key, and must still import. When the
+    // key *is* present it has to be a real array, so a malformed payload is
+    // still rejected rather than silently dropping every deadline.
+    (candidate.deadlines === undefined || Array.isArray(candidate.deadlines))
   )
 }
 

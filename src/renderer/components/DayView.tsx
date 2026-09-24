@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CalendarEvent } from '@shared/types'
+import type { CalendarEvent, Deadline } from '@shared/types'
 import {
   formatDuration,
   formatHourLabel,
@@ -10,7 +10,8 @@ import {
   timeToMinutes,
   toISODate
 } from '../lib/dateEngine'
-import { ChevronLeft, ClockIcon, PlusIcon } from './Icons'
+import { deadlineDayCount, formatDeadlineRange, readableTextColor } from '../lib/deadlineLayout'
+import { ChevronLeft, ClockIcon, FlagIcon, PlusIcon } from './Icons'
 
 /** Vertical pixels representing one hour on the timeline. */
 const HOUR_HEIGHT = 56
@@ -26,9 +27,13 @@ interface DayViewProps {
   date: string
   /** All events that fall on this date. */
   events: CalendarEvent[]
+  /** Deadlines whose timeframe covers this date. */
+  deadlines: Deadline[]
   onBack: () => void
   onAddEvent: () => void
   onEditEvent: (id: string) => void
+  /** Open the deadline modal for an existing deadline. */
+  onEditDeadline: (id: string) => void
 }
 
 interface PositionedEvent {
@@ -134,9 +139,11 @@ function describeEvent(event: CalendarEvent): string {
 export function DayView({
   date,
   events,
+  deadlines,
   onBack,
   onAddEvent,
-  onEditEvent
+  onEditEvent,
+  onEditDeadline
 }: DayViewProps): JSX.Element {
   const selectedDate = useMemo(() => fromISODate(date), [date])
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -248,6 +255,37 @@ export function DayView({
               {ev.title || 'Untitled'}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Deadlines covering this day — the month grid shows these as bars. */}
+      {deadlines.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-surface-border bg-surface-muted/60 px-4 py-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-content-subtle">
+            Deadlines
+          </span>
+          {deadlines.map((deadline) => {
+            const days = deadlineDayCount(deadline)
+            return (
+              <button
+                key={deadline.id}
+                type="button"
+                onClick={() => onEditDeadline(deadline.id)}
+                title={`${formatDeadlineRange(deadline)} · ${days} day${days === 1 ? '' : 's'}`}
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-transform hover:scale-[1.03]"
+                style={{
+                  backgroundColor: deadline.color,
+                  color: readableTextColor(deadline.color)
+                }}
+              >
+                <FlagIcon width={12} height={12} />
+                {deadline.title || 'Deadline'}
+                <span className="opacity-70">
+                  · {days}d
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
 

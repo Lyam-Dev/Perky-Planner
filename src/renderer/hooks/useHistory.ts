@@ -53,6 +53,15 @@ export function useHistory() {
       case 'task.delete':
         await window.calendar.tasks.create(stripRowIds(entry.before))
         break
+      case 'deadline.create':
+        await window.calendar.deadlines.remove(entry.after.id)
+        break
+      case 'deadline.update':
+        await window.calendar.deadlines.update(entry.before.id, stripRowIds(entry.before))
+        break
+      case 'deadline.delete':
+        await window.calendar.deadlines.create(stripRowIds(entry.before))
+        break
       case 'category.create':
         await window.calendar.categories.remove(entry.after.id)
         break

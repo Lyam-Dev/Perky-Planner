@@ -3,6 +3,7 @@ import { IPC } from '../shared/types'
 import type {
   AppSettings,
   CategoryInput,
+  DeadlineInput,
   EventInput,
   ImportMode,
   TaskInput
@@ -37,6 +38,17 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IPC.TASKS_TOGGLE, (_e, id: string) => db.toggleTask(id))
   ipcMain.handle(IPC.TASKS_REMOVE, (_e, id: string) => db.deleteTask(id))
+
+  // --- Deadlines -----------------------------------------------------------
+  ipcMain.handle(IPC.DEADLINES_LIST, () => db.listDeadlines())
+  ipcMain.handle(IPC.DEADLINES_LIST_BY_RANGE, (_e, start: string, end: string) =>
+    db.listDeadlinesByRange(start, end)
+  )
+  ipcMain.handle(IPC.DEADLINES_CREATE, (_e, input: DeadlineInput) => db.createDeadline(input))
+  ipcMain.handle(IPC.DEADLINES_UPDATE, (_e, id: string, input: DeadlineInput) =>
+    db.updateDeadline(id, input)
+  )
+  ipcMain.handle(IPC.DEADLINES_REMOVE, (_e, id: string) => db.deleteDeadline(id))
 
   // --- Categories ---------------------------------------------------------
   ipcMain.handle(IPC.CATEGORIES_LIST, () => db.listCategories())

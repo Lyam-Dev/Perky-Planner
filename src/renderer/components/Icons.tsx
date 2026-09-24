@@ -186,3 +186,24 @@ export function UploadIcon(props: IconProps): JSX.Element {
   )
 }
 
+/** Flag icon marking a deadline. */
+export function FlagIcon(props: IconProps): JSX.Element {
+  return (
+    <svg {...base} width="14" height="14" {...props}>
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <path d="M4 22v-7" />
+    </svg>
+  )
+}
+
+/** Horizontal range/arrow icon (start → end) for deadline timeframes. */
+export function RangeIcon(props: IconProps): JSX.Element {
+  return (
+    <svg {...base} width="14" height="14" {...props}>
+      <path d="M3 12h18" />
+      <path d="M7 8l-4 4 4 4" />
+      <path d="M17 8l4 4-4 4" />
+    </svg>
+  )
+}
+

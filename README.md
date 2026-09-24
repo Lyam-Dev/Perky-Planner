@@ -21,7 +21,21 @@ Perky Planner is designed to simplify schedule management while providing powerf
 ### Event & Date Management
 * Interactive event creation, editing, and deletion modal
 * Detailed event notes and time-frame support (all-day or custom start/end times)
-* Color-coded category presets with day-cell badges and overflow indicators (`+N more`)
+* Color-coded category presets with day-cell badges
+* Day cells measure their real height and truncate event chips to fit, showing an
+  `and N more…` overflow label (a compact `+N` header badge when the box is tiny)
+
+### Deadlines (multi-day timeframes)
+* A **deadline** claims a whole timeframe (`startDate` → `endDate`, inclusive)
+  rather than a single day, with a title, notes and category colour
+* Painted across the calendar as a **continuous colour bar spanning every day it
+  covers** — rounded at its real start/end, square where it breaks over a week
+  boundary; click a bar to edit it
+* Overlapping deadlines **stack into lanes** inside a week (up to the room the
+  row actually has, with a `+N` badge beyond that) so they never cover each
+  other, and each day cell reserves exactly the space the bars need
+* Add one from the **Deadline** button in the calendar toolbar; the 24-hour day
+  view also lists every deadline covering that day
 
 ### Daily Task Sidebar
 * Persistent, collapsible sidebar for quick-entry to-dos
@@ -37,7 +51,8 @@ Perky Planner is designed to simplify schedule management while providing powerf
 
 ### Data & Synchronization
 * Local-first persistence powered by SQLite (`better-sqlite3`)
-* Compact share code export/import (`perky1:`) with conflict-resolution merging
+* Compact share code export/import (`perky1:`) covering events, tasks, deadlines
+  and categories, with conflict-resolution merging
 * Automatic update checks through GitHub Releases
 * Tombstone tracking to ensure deleted items stay deleted across devices
 
@@ -97,6 +112,12 @@ npm install
 npm run dev
 ```
 
+### Verification
+```bash
+bash scripts/run-deadline-test.sh   # deadlines + day-cell layout (111 assertions)
+bash scripts/run-xfer-test.sh       # perky1: transfer round-trip
+```
+
 ### Building
 ```bash
 # Compile main, preload, and renderer processes
@@ -115,8 +136,8 @@ Build artifacts are generated in the `dist/` directory.
 Create and push a semantic version tag:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 The release workflow will automatically build supported platform packages and publish them to GitHub Releases.
@@ -143,7 +164,9 @@ PerkyPlanner/
 │       ├── App.tsx
 │       ├── index.css
 │       ├── lib/
-│       │   └── dateEngine.ts
+│       │   ├── dateEngine.ts
+│       │   ├── calendarCellLayout.ts
+│       │   └── deadlineLayout.ts
 │       ├── hooks/
 │       └── components/
 ├── build/

@@ -167,9 +167,12 @@ export function DataTab(): JSX.Element {
               {result.replaced ? 'Calendar replaced' : 'Import complete'}
             </p>
             <p>
-              {result.eventsAdded} event{result.eventsAdded === 1 ? '' : 's'} and {result.tasksAdded}{' '}
-              task{result.tasksAdded === 1 ? '' : 's'} added ·{' '}
-              {result.eventsUpdated + result.tasksUpdated} updated ·{' '}
+              {result.eventsAdded} event{result.eventsAdded === 1 ? '' : 's'} ·{' '}
+              {result.tasksAdded} task{result.tasksAdded === 1 ? '' : 's'} ·{' '}
+              {result.deadlinesAdded} deadline{result.deadlinesAdded === 1 ? '' : 's'} added
+            </p>
+            <p>
+              {result.eventsUpdated + result.tasksUpdated + result.deadlinesUpdated} updated ·{' '}
               {result.categoriesAdded + result.categoriesUpdated} tag changes
               {result.tombstonesApplied > 0 && ` · ${result.tombstonesApplied} deletions applied`}
             </p>
