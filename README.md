@@ -133,11 +133,13 @@ npm run build:all     # Build for all supported platforms
 Build artifacts are generated in the `dist/` directory.
 
 ### Releasing
-Create and push a semantic version tag:
+Create and push a semantic version tag. All of the historical styles are
+accepted by the workflow trigger — `v1.2.3`, `1.2.3v`, and `1.2.3V` (GitHub's
+ref filters are case-sensitive, so each casing has its own glob):
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag 1.1.0V
+git push origin 1.1.0V
 ```
 
 The release workflow will automatically build supported platform packages and publish them to GitHub Releases.

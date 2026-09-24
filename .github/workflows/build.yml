@@ -3,8 +3,9 @@ name: Build & Release
 on:
   push:
     branches: [main]
-    # Support both naming styles: v1.2.3 and 1.2.3v
-    tags: ['v*', '*v']
+    # Support the naming styles used so far: v1.2.3, 1.2.3v and 1.2.3V
+    # (GitHub's ref filters are case-sensitive, so uppercase needs its own globs.)
+    tags: ['v*', '*v', '*V', 'V*']
   pull_request:
     branches: [main]
   workflow_dispatch:
