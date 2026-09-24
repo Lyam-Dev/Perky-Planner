@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import type { UpdateInfo } from '../shared/types'
 
 /**
@@ -42,6 +42,16 @@ function getUpdater(): AutoUpdater | null {
     updater.autoInstallOnAppQuit = true
     updater.logger = null
 
+    // Resolve the update feed from GitHub Releases over the network instead of
+    // relying solely on the packaged `app-update.yml`. electron-updater still
+    // reads that file for its download-cache directory, but the release lookup
+    // itself now works even if the config file is missing or stale.
+    updater.setFeedURL({
+      provider: 'github',
+      owner: 'Lyam-Dev',
+      repo: 'Perky-Planner'
+    })
+
     updater.on('checking-for-update', () => broadcast({ status: 'checking' }))
     updater.on('update-available', (info) =>
       broadcast({ status: 'available', version: info?.version })
@@ -73,6 +83,14 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
       status: 'error',
       message: 'Update support is unavailable in this build.'
     })
+    return lastInfo
+  }
+
+  // Skip entirely outside packaged builds: there is nothing meaningful to
+  // update from while developing, and the network round trip only produces a
+  // confusing error.
+  if (!app.isPackaged) {
+    broadcast({ status: 'not-available' })
     return lastInfo
   }
 

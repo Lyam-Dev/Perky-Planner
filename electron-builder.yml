@@ -56,5 +56,12 @@ rpm:
   artifactName: ${name}-${version}.${ext}
 # electron-builder's auto-publish requires GH_TOKEN; releases are instead
 # attached by the dedicated softprops/action-gh-release step in CI.
-publish: null
+# The `publish` block below is still required at *package* time: it makes
+# electron-builder embed `app-update.yml` (the updater's feed config) into the
+# installer resources and emit the `latest*.yml` channel files into dist/.
+# CI passes `--publish never`, so electron-builder itself never uploads.
+publish:
+  provider: github
+  owner: Lyam-Dev
+  repo: Perky-Planner
 npmRebuild: true

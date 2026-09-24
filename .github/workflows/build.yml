@@ -80,6 +80,7 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
+            dist/*.yml
           if-no-files-found: error
 
   # Runs once after every build job finishes, so the GitHub release is created
@@ -118,6 +119,11 @@ jobs:
               "https://api.github.com/repos/$REPO/releases/$id"
           done
 
+      # Also attach the electron-updater channel files (latest.yml /
+      # latest-mac.yml / latest-linux.yml) — clients fetch these from the
+      # release to discover new versions; without them the updater finds nothing.
+      # (Keep comments outside the literal block: `#` is not a YAML comment
+      # inside a block scalar and would be parsed as another glob pattern.)
       - name: Attach binaries to release
         uses: softprops/action-gh-release@v2
         with:
@@ -129,4 +135,5 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
+            dist/*.yml
           generate_release_notes: true
