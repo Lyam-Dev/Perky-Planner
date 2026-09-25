@@ -5,7 +5,10 @@
  * single absolutely-positioned bar per week row it touches, expressed as a
  * percentage of that row — so a bar crossing a week boundary visually
  * continues on the next row, and overlapping deadlines are stacked into lanes
- * instead of covering each other.
+ * instead of covering each other. A row draws full-height bars while they fit
+ * and squeezes them (down to `MIN_BAR_HEIGHT`) when more deadlines overlap the
+ * week than it has lanes, so a deadline is never dropped from the grid just
+ * because the week is busy.
  *
  * Everything here is pure so the layout can be reasoned about (and tested)
  * without a DOM.
@@ -19,10 +22,19 @@ export { CELL_GAP, CELL_PADDING, DAY_NUMBER_HEIGHT } from './calendarCellLayout'
 /** Pixel offset from a week row's top to the first deadline lane. */
 export const BAND_TOP = CELL_PADDING + DAY_NUMBER_HEIGHT + CELL_GAP
 
+/** Height of a deadline bar when a week row has room for it. */
 export const BAR_HEIGHT = 14
+/**
+ * Floor a bar is squeezed to when a row has more overlapping deadlines than
+ * full-height lanes. Every deadline keeps a (still clickable) bar instead of
+ * being dropped from the grid.
+ */
+export const MIN_BAR_HEIGHT = 8
 export const BAR_GAP = 2
-/** Weeks stack at most this many lanes; the rest collapse into a “+N” badge. */
+/** Weeks stack at most this many lanes before bars start shrinking. */
 export const MAX_LANES = 3
+/** Rendered height of the "N more deadlines" affordance in a week row. */
+export const OVERFLOW_BADGE_HEIGHT = 14
 
 /** A single horizontal deadline segment inside one week row. */
 export interface DeadlineBar {
@@ -37,46 +49,105 @@ export interface DeadlineBar {
   startsHere: boolean
   /** The deadline genuinely ends in this week (right cap is rounded). */
   endsHere: boolean
+  /** Pixel offset of the bar's top edge from the week row's top. */
+  top: number
+  /** Rendered bar height in pixels for this week. */
+  height: number
 }
 
 /** Everything a week row needs to draw its deadline band. */
 export interface WeekDeadlines {
   bars: DeadlineBar[]
-  /** Deadlines that did not fit inside the available lanes. */
+  /** Deadlines that did not fit in the available lanes. */
   overflow: number
+  /** The same deadlines, in bar order, so the UI can list them. */
+  overflowDeadlines: Deadline[]
   /** Height to reserve inside each day cell of this week, in pixels. */
   bandHeight: number
+  /** Bar height used by this week (shrinks when the row is crowded). */
+  barHeight: number
+  /** Offset for the "+N more" affordance, or null when nothing overflows. */
+  overflowTop: number | null
 }
 
 /** Reserved band height for a number of stacked lanes. */
-export function bandHeightFor(lanes: number): number {
+export function bandHeightFor(lanes: number, barHeight: number = BAR_HEIGHT): number {
   if (lanes <= 0) return 0
-  return lanes * BAR_HEIGHT + (lanes - 1) * BAR_GAP
+  return lanes * barHeight + (lanes - 1) * BAR_GAP
 }
 
 /** Top offset of a lane, relative to the start of a week row. */
-export function barTop(lane: number): number {
-  return BAND_TOP + lane * (BAR_HEIGHT + BAR_GAP)
+export function barTop(lane: number, barHeight: number = BAR_HEIGHT): number {
+  return BAND_TOP + lane * (barHeight + BAR_GAP)
 }
 
 /**
- * Largest number of deadline lanes that fit below the date row in a week row.
+ * Vertical room a week row can give the deadline band without breaking the
+ * day cell it is drawn inside.
  *
- * The month grid gives each row an equal share of the available height. At
- * smaller window sizes that share can be less than the old fixed three-lane
- * band, so the renderer uses this to avoid drawing a bar outside its day box.
+ * The band sits between the date row and the event chips, so the padding, the
+ * date row and the two gaps it needs are removed from the row height first.
+ */
+export function deadlineBandRoom(rowHeight: number): number {
+  if (!Number.isFinite(rowHeight)) return bandHeightFor(MAX_LANES)
+  return Math.max(
+    0,
+    rowHeight - CELL_PADDING * 2 - DAY_NUMBER_HEIGHT - CELL_GAP * 2
+  )
+}
+
+/**
+ * Band room to use for a week row, given the row height React last measured.
+ *
+ * A row height of zero (or a non-finite one) is *not* a real measurement: it is
+ * what the grid reports while the window is still hidden, before the first
+ * paint. Treating it as the truth starves the band of every lane, which makes
+ * saved deadlines silently collapse into a "N more" count, so an unmeasured row
+ * falls back to the room three full-height lanes need.
+ */
+export function bandRoomForRowHeight(rowHeight: number | null): number {
+  if (rowHeight == null || !Number.isFinite(rowHeight) || rowHeight <= 0) {
+    return bandHeightFor(MAX_LANES)
+  }
+  return Math.min(deadlineBandRoom(rowHeight), bandHeightFor(MAX_LANES))
+}
+
+/**
+ * Largest number of deadline lanes a band of `room` pixels can hold.
+ *
+ * Lanes are allowed to shrink down to `MIN_BAR_HEIGHT` so a crowded week shows
+ * every deadline it can rather than hiding the extra ones.
+ */
+export function maxDeadlineLanes(room: number): number {
+  const usable = Number.isFinite(room) ? room : bandHeightFor(MAX_LANES)
+  if (usable < MIN_BAR_HEIGHT) return 0
+  return Math.floor((usable + BAR_GAP) / (MIN_BAR_HEIGHT + BAR_GAP))
+}
+
+/**
+ * Bar height for `lanes` lanes inside `room` pixels.
+ *
+ * Full height while the room allows it; squeezed down to `MIN_BAR_HEIGHT`
+ * (never further) when many deadlines overlap the same week.
+ */
+export function deadlineBarHeight(room: number, lanes: number): number {
+  if (lanes <= 0) return 0
+  const usable = Number.isFinite(room) ? room : bandHeightFor(MAX_LANES)
+  const perLane = Math.floor((usable - (lanes - 1) * BAR_GAP) / lanes)
+  return Math.max(MIN_BAR_HEIGHT, Math.min(BAR_HEIGHT, perLane))
+}
+
+/**
+ * Number of full-height deadline lanes a week row can show.
+ *
+ * Used to reason about capacity (and by the verification suite); the renderer
+ * lays bars out through `layoutWeekDeadlines`, which keeps squeezing bars below
+ * this number so busy weeks still show every deadline they can.
  */
 export function deadlineLanesForRowHeight(rowHeight: number): number {
-  if (!Number.isFinite(rowHeight)) return MAX_LANES
-
-  const availableBandHeight =
-    rowHeight - CELL_PADDING * 2 - DAY_NUMBER_HEIGHT - CELL_GAP * 2
-  if (availableBandHeight < BAR_HEIGHT) return 0
-
-  return Math.min(
-    MAX_LANES,
-    Math.floor((availableBandHeight + BAR_GAP) / (BAR_HEIGHT + BAR_GAP))
-  )
+  const room = deadlineBandRoom(rowHeight)
+  if (room < BAR_HEIGHT) return 0
+  return Math.min(MAX_LANES, Math.floor((room + BAR_GAP) / (BAR_HEIGHT + BAR_GAP)))
 }
 
 /**
@@ -85,23 +156,40 @@ export function deadlineLanesForRowHeight(rowHeight: number): number {
  * Bars are sorted by start column and then longest-first, then packed greedily
  * into the first lane whose previous bar has already finished. That order keeps
  * the long bars on top and lets short ones slot in beneath them.
+ *
+ * `bandRoom` is the vertical space the week row can spare for the band. Bars
+ * start at full height and are squeezed down to `MIN_BAR_HEIGHT` when more
+ * deadlines overlap the week than full-height lanes — so a deadline that the
+ * user just created still gets a visible, clickable bar instead of silently
+ * disappearing. Only when even the squeezed lanes run out do the remaining
+ * deadlines collapse into the `overflow` count.
  */
 export function layoutWeekDeadlines(
   deadlines: Deadline[],
   week: DayCellData[],
-  requestedMaxLanes = MAX_LANES
+  bandRoom: number = bandHeightFor(MAX_LANES)
 ): WeekDeadlines {
-  if (week.length === 0) return { bars: [], overflow: 0, bandHeight: 0 }
+  const empty: WeekDeadlines = {
+    bars: [],
+    overflow: 0,
+    overflowDeadlines: [],
+    bandHeight: 0,
+    barHeight: 0,
+    overflowTop: null
+  }
+  if (week.length === 0) return empty
 
-  const laneLimit = Math.min(
-    MAX_LANES,
-    Math.max(0, Math.floor(Number.isFinite(requestedMaxLanes) ? requestedMaxLanes : MAX_LANES))
+  // The band never grows past the room three full-height lanes always had, so
+  // a crowded week can never squeeze the day cell's event chips out.
+  const room = Math.min(
+    Number.isFinite(bandRoom) ? bandRoom : bandHeightFor(MAX_LANES),
+    bandHeightFor(MAX_LANES)
   )
 
   const weekStart = week[0].iso
   const weekEnd = week[week.length - 1].iso
 
-  const candidates: DeadlineBar[] = []
+  const candidates: Omit<DeadlineBar, 'top' | 'height'>[] = []
   for (const deadline of deadlines) {
     // Inclusive overlap test — a bar that started last month still shows.
     if (deadline.startDate > weekEnd || deadline.endDate < weekStart) continue
@@ -127,28 +215,59 @@ export function layoutWeekDeadlines(
     })
   }
 
+  const laneLimit = maxDeadlineLanes(room)
+  if (candidates.length === 0 || laneLimit === 0) {
+    return {
+      ...empty,
+      overflow: candidates.length,
+      overflowDeadlines: candidates.map((candidate) => candidate.deadline)
+    }
+  }
+
   candidates.sort((a, b) => a.columnStart - b.columnStart || b.columnSpan - a.columnSpan)
 
   // Greedy interval partitioning over columns.
   const laneEnds: number[] = []
-  const bars: DeadlineBar[] = []
-  let overflow = 0
+  const packed: typeof candidates = []
+  const overflowDeadlines: Deadline[] = []
 
   for (const bar of candidates) {
     let lane = laneEnds.findIndex((end) => end < bar.columnStart)
     if (lane === -1) {
       if (laneEnds.length >= laneLimit) {
-        overflow++
+        overflowDeadlines.push(bar.deadline)
         continue
       }
       lane = laneEnds.length
       laneEnds.push(0)
     }
     laneEnds[lane] = bar.columnStart + bar.columnSpan - 1
-    bars.push({ ...bar, lane })
+    packed.push({ ...bar, lane })
   }
 
-  return { bars, overflow, bandHeight: bandHeightFor(laneEnds.length) }
+  const lanes = laneEnds.length
+  const barHeight = deadlineBarHeight(room, lanes)
+  const bars: DeadlineBar[] = packed.map((bar) => ({
+    ...bar,
+    top: barTop(bar.lane, barHeight),
+    height: barHeight
+  }))
+
+  // The "N more" affordance sits at the right edge of the last lane, clamped so
+  // it always stays inside the week row.
+  const lastLaneTop = barTop(lanes - 1, barHeight)
+
+  return {
+    bars,
+    overflow: overflowDeadlines.length,
+    overflowDeadlines,
+    bandHeight: bandHeightFor(lanes, barHeight),
+    barHeight,
+    overflowTop:
+      overflowDeadlines.length > 0
+        ? Math.max(0, lastLaneTop + barHeight - OVERFLOW_BADGE_HEIGHT)
+        : null
+  }
 }
 
 /**

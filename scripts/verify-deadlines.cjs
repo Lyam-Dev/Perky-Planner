@@ -467,20 +467,90 @@ app.whenReady().then(() => {
     d(`m${i}`, `M${i}`, '2026-09-16', '2026-09-16')
   )
   const crowded = layout.layoutWeekDeadlines(crowdedDeadlines, weeks[2])
-  check('lanes are capped at MAX_LANES', crowded.bars.length, layout.MAX_LANES)
-  check('extra deadlines are counted as overflow', crowded.overflow, 2)
+  check('a crowded week squeezes bars instead of hiding deadlines', crowded.bars.length, 4)
+  check('only what the room cannot hold becomes overflow', crowded.overflow, 1)
+  check(
+    'overflow deadlines are listed so the UI can show them',
+    crowded.overflowDeadlines.map((x) => x.id),
+    ['m4']
+  )
+  check('crowded bars shrink rather than disappear', crowded.barHeight, 10)
+  check('bars never shrink below the readable floor', crowded.barHeight >= layout.MIN_BAR_HEIGHT, true)
   check('the band never grows past the cap', crowded.bandHeight, 46)
+  check(
+    'the "+N" badge has a position inside the week row',
+    typeof crowded.overflowTop === 'number',
+    true
+  )
 
-  const oneDeadlineLane = layout.layoutWeekDeadlines(crowdedDeadlines, weeks[2], 1)
-  check('a height-limited week can use fewer deadline lanes', oneDeadlineLane.bars.length, 1)
-  check('deadlines above the available lanes are still counted', oneDeadlineLane.overflow, 4)
-  check('a height-limited week reserves only the used band', oneDeadlineLane.bandHeight, layout.BAR_HEIGHT)
+  const tightRoom = layout.layoutWeekDeadlines(crowdedDeadlines, weeks[2], 20)
+  check('a short row fits fewer deadline lanes', tightRoom.bars.length, 2)
+  check('a short row still shows the squeezed bars', tightRoom.barHeight, 9)
+  check('the band stays inside the short row', tightRoom.bandHeight, 20)
+  check('deadlines above the available lanes are still counted', tightRoom.overflow, 3)
+  check('a short row lists every hidden deadline', tightRoom.overflowDeadlines.length, 3)
+
   const noDeadlineSpace = layout.layoutWeekDeadlines(crowdedDeadlines, weeks[2], 0)
   check('a week with no room for deadline bars keeps none', noDeadlineSpace.bars.length, 0)
   check('a week with no room for deadline bars counts them all', noDeadlineSpace.overflow, 5)
+  check('a week with no room lists them all for the UI', noDeadlineSpace.overflowDeadlines.length, 5)
+  check('a week with no room has no lane geometry', noDeadlineSpace.overflowTop, null)
+
   check('deadline lane limit stays within a full row', layout.deadlineLanesForRowHeight(90), 3)
   check('deadline lane limit reduces for a short row', layout.deadlineLanesForRowHeight(89), 2)
   check('deadline lane limit is zero when a bar cannot fit', layout.deadlineLanesForRowHeight(53), 0)
+
+  // Regression: a deadline created in a week whose lanes are already spoken for
+  // used to be dropped from the grid entirely (the row was in the DB but had no
+  // bar). Squeezed lanes must keep it visible inside the measured row.
+  const minWindowRoom = layout.deadlineBandRoom(77.67)
+  const threeInShortRow = layout.layoutWeekDeadlines(
+    [
+      d('p', 'Probe A', '2026-09-16', '2026-09-18'),
+      d('q', 'Probe B', '2026-09-16', '2026-09-18'),
+      d('r', 'Probe C', '2026-09-16', '2026-09-16')
+    ],
+    weeks[2],
+    minWindowRoom
+  )
+  check('every deadline keeps a bar in a short week', threeInShortRow.bars.length, 3)
+  check('nothing overflows in that week', threeInShortRow.overflow, 0)
+  check('the squeezed bars stay readable', threeInShortRow.barHeight, 9)
+  ok(
+    'squeezed bars stay inside the measured week row',
+    layout.BAND_TOP + threeInShortRow.bandHeight <= 77.67
+  )
+
+  // Regression: the grid's measured row height used to be trusted even when it
+  // was 0 — the value a hidden window reports, and the value the grid kept
+  // reporting after a month change remounted it. Zero room meant every saved
+  // deadline collapsed into a "N more" count, so deadlines vanished when you
+  // navigated away and back.
+  const fullRowRoom = layout.bandRoomForRowHeight(108)
+  check('an unmeasured row still gets three lanes of room', layout.bandRoomForRowHeight(null), fullRowRoom)
+  check('a zero row height is not treated as real', layout.bandRoomForRowHeight(0), fullRowRoom)
+  check('a negative row height is not treated as real', layout.bandRoomForRowHeight(-40), fullRowRoom)
+  check('a non-finite row height is not treated as real', layout.bandRoomForRowHeight(NaN), fullRowRoom)
+  check(
+    'a measured row height uses its own room',
+    layout.bandRoomForRowHeight(78),
+    78 - cellLayout.CELL_PADDING * 2 - cellLayout.DAY_NUMBER_HEIGHT - cellLayout.CELL_GAP * 2
+  )
+  ok('room never exceeds what three full lanes need', layout.bandRoomForRowHeight(400) <= fullRowRoom)
+
+  // The whole point: with an unmeasured row (0) the deadlines must still be
+  // drawn, because the render happens before the first measurement lands.
+  const monthRoundTrip = layout.layoutWeekDeadlines(
+    [
+      d('m1', 'Persisted 1', '2026-09-14', '2026-09-20'),
+      d('m2', 'Persisted 2', '2026-09-14', '2026-09-20'),
+      d('m3', 'Persisted 3', '2026-09-16', '2026-09-16')
+    ],
+    weeks[2],
+    layout.bandRoomForRowHeight(0)
+  )
+  check('deadlines survive a month round trip with no measurement', monthRoundTrip.bars.length, 3)
+  check('no deadline is hidden after a month round trip', monthRoundTrip.overflow, 0)
 
   console.log('=== Day-cell capacity: content stays inside its box ===')
   check('cell space accounts for padding, date row and gap', cellLayout.dayCellEventSpace(120, 0), 80)

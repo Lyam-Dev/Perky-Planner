@@ -31,9 +31,14 @@ Perky Planner is designed to simplify schedule management while providing powerf
 * Painted across the calendar as a **continuous colour bar spanning every day it
   covers** — rounded at its real start/end, square where it breaks over a week
   boundary; click a bar to edit it
-* Overlapping deadlines **stack into lanes** inside a week (up to the room the
-  row actually has, with a `+N` badge beyond that) so they never cover each
-  other, and each day cell reserves exactly the space the bars need
+* Overlapping deadlines **stack into lanes** inside a week (each day cell reserves
+  exactly the space the bars need) so they never cover each other. A week draws
+  full-height bars while they fit and squeezes them down to a readable minimum
+  when more deadlines overlap than it has lanes — so a deadline you just created
+  always gets a bar
+* Anything a row still cannot draw collapses into a clickable **`⚑ +N`** badge
+  that lists those deadlines and opens any of them for editing, so a saved
+  deadline is never invisible or unreachable in the grid
 * Add one from the **Deadline** button in the calendar toolbar; the 24-hour day
   view also lists every deadline covering that day
 

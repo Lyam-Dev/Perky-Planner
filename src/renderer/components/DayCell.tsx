@@ -25,6 +25,8 @@ interface DayCellProps {
   deadlineBandHeight?: number
   /** Deadlines omitted because the row has no room for another lane. */
   deadlineOverflow?: number
+  /** Titles of those omitted deadlines, used for the hover tooltip. */
+  deadlineOverflowTitles?: string[]
   /** Single click: open the quick add/edit modal for this day. */
   onSelect: (cell: DayCellData) => void
   /** Double click: open the full 24-hour day view for this day. */
@@ -50,11 +52,20 @@ export function DayCell({
   events,
   deadlineBandHeight = 0,
   deadlineOverflow = 0,
+  deadlineOverflowTitles = [],
   onSelect,
   onOpenDay
 }: DayCellProps): JSX.Element {
   const cellRef = useRef<HTMLButtonElement | null>(null)
   const [cellHeight, setCellHeight] = useState<number | null>(null)
+
+  /** Tooltip for the flag badge, naming the deadlines the week cannot draw. */
+  const deadlineOverflowLabel =
+    deadlineOverflowTitles.length > 0
+      ? `${deadlineOverflow} more deadline${deadlineOverflow === 1 ? '' : 's'} this week:\n${deadlineOverflowTitles
+          .map((title) => `• ${title || 'Deadline'}`)
+          .join('\n')}`
+      : `${deadlineOverflow} more deadline${deadlineOverflow === 1 ? '' : 's'} this week`
 
   // Measure the row itself rather than guessing from the window height. The
   // parent grid gives all six rows a flex share, and this also follows any
@@ -151,7 +162,7 @@ export function DayCell({
             {deadlineOverflow > 0 && (
               <span
                 className="inline-flex flex-shrink-0 items-center text-[9px] font-semibold text-content-subtle"
-                title={`${deadlineOverflow} more deadline${deadlineOverflow === 1 ? '' : 's'} this week`}
+                title={deadlineOverflowLabel}
                 aria-label={`${deadlineOverflow} more deadlines this week`}
               >
                 ⚑+{deadlineOverflow}
@@ -169,7 +180,7 @@ export function DayCell({
         {events.length === 0 && deadlineOverflow > 0 && (
           <span
             className="text-[9px] font-semibold text-content-subtle"
-            title={`${deadlineOverflow} more deadline${deadlineOverflow === 1 ? '' : 's'} this week`}
+            title={deadlineOverflowLabel}
             aria-label={`${deadlineOverflow} more deadlines this week`}
           >
             ⚑+{deadlineOverflow}
