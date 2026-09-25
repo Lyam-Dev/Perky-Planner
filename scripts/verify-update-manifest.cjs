@@ -109,6 +109,29 @@ if (present.has('latest-mac.yml')) {
       }
       check('the mac bundle in the zip passes codesign', valid, true)
       if (!valid) console.log(`        ${detail}`)
+
+      // ShipIt validates the incoming update against the *installed* app's
+      // designated requirement. A build-specific requirement (a bare cdhash)
+      // changes every build, so no future update could ever replace the app it
+      // shipped from — it fails with "code failed to satisfy specified code
+      // requirement(s)". Require a stable, identifier-based one instead.
+      if (appDir) {
+        let dr = ''
+        try {
+          dr = execFileSync('codesign', ['-d', '-r-', appDir], {
+            stdio: 'pipe',
+            encoding: 'utf8'
+          })
+            .trim()
+            .split('\n')
+            .pop()
+        } catch {
+          dr = '(could not be read)'
+        }
+        const stable = /identifier\s+"/.test(dr) && !/cdhash/.test(dr)
+        check('the mac bundle has a stable (non-cdhash) requirement', stable, true)
+        if (!stable) console.log(`        designated requirement: ${dr}`)
+      }
     }
   } finally {
     fs.rmSync(staging, { recursive: true, force: true })

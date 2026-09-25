@@ -178,9 +178,14 @@ they must be present` — the download succeeds and the install fails.
 
 `scripts/ad-hoc-sign-mac.cjs` runs as `afterPack` and re-signs the bundle ad-hoc
 (`codesign --force --deep --sign -`), which seals the whole app so the update
-installs. Set a real `Developer ID Application: ...` identity in
-`electron-builder.yml` to replace this with proper signing and notarization; the
-hook detects a valid signature and leaves it alone.
+installs. It also pins a **stable designated requirement**
+(`designated => identifier "com.perkyplanner.app"`) — without this, ad-hoc
+signing leaves a bare `cdhash` requirement that changes on every build, and
+ShipIt validates each update against the installed app's requirement, so nothing
+can ever replace it (`code failed to satisfy specified code requirement(s)`).
+Set a real `Developer ID Application: ...` identity in `electron-builder.yml` to
+replace this with proper signing and notarization; the hook detects a valid
+signature and leaves it alone.
 
 ---
 

@@ -18,6 +18,7 @@
  */
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
+const os = require('node:os')
 const path = require('node:path')
 
 /** context.appOutDir is <dist>/mac[-arch]; the bundle sits directly inside it. */
@@ -28,10 +29,27 @@ function findAppBundle(appOutDir) {
 }
 
 /**
- * Verifies the bundle, re-signing ad-hoc only when it does not already verify.
+ * A build-specific designated requirement, e.g. a bare `cdhash H"..."`.
+ *
+ * Squirrel's ShipIt validates an incoming update against the *installed* app's
+ * designated requirement, so a per-build cdhash means no new build can ever
+ * replace the old one ("code failed to satisfy specified code requirement(s)").
+ * Pinning the requirement to the bundle identifier makes it stable across
+ * builds, so updates keep working. Written to a temp file because codesign's
+ * --requirements takes a path.
+ */
+function designatedRequirement(appId) {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'perky-req-')), 'requirement.txt')
+  fs.writeFileSync(file, `designated => identifier "${appId}"\n`)
+  return file
+}
+
+/**
+ * Verifies the bundle, re-signing ad-hoc only when it does not already verify,
+ * and pins the designated requirement so future updates can replace it.
  * Throws if it still fails, so an app Squirrel would refuse can never ship.
  */
-function sealIfNeeded(appPath) {
+function sealIfNeeded(appPath, appId) {
   const verify = () =>
     execFileSync('codesign', ['--verify', '--deep', '--strict', appPath], { stdio: 'pipe' })
 
@@ -43,8 +61,18 @@ function sealIfNeeded(appPath) {
     // Expected for unsigned CI builds: seal it below.
   }
 
+  // Sign in two steps. `--deep` re-seals every nested helper/framework, but
+  // passing --requirements together with --deep applies the requirement to the
+  // nested code too and leaves the bundle unverifiable ("nested code is modified
+  // or invalid"). Sealing first and applying the requirement to the outer bundle
+  // afterwards keeps the nested seals intact and sets a stable DR.
   console.log(`ad-hoc-sign-mac: sealing ${path.basename(appPath)} ad-hoc`)
   execFileSync('codesign', ['--force', '--deep', '--sign', '-', appPath], { stdio: 'inherit' })
+  execFileSync(
+    'codesign',
+    ['--force', '--sign', '-', '--requirements', designatedRequirement(appId), appPath],
+    { stdio: 'inherit' }
+  )
 
   try {
     verify()
@@ -53,7 +81,17 @@ function sealIfNeeded(appPath) {
     console.error(String(error.stdout || error.message))
     throw new Error('ad-hoc signing failed')
   }
-  console.log('ad-hoc-sign-mac: signature valid')
+
+  // A cdhash-based requirement would silently make the next update fail, so
+  // confirm the requirement is the stable one before shipping.
+  const dr = execFileSync('codesign', ['-d', '-r-', appPath], { stdio: 'pipe', encoding: 'utf8' })
+    .trim()
+    .split('\n')
+    .pop()
+  console.log(`ad-hoc-sign-mac: signature valid (${dr})`)
+  if (/cdhash/.test(dr)) {
+    throw new Error(`ad-hoc signing left a build-specific requirement: ${dr}`)
+  }
 }
 
 module.exports = async function afterPack(context) {
@@ -62,7 +100,9 @@ module.exports = async function afterPack(context) {
     console.log('ad-hoc-sign-mac: no .app bundle found, skipping')
     return
   }
-  sealIfNeeded(appPath)
+  // appId matches electron-builder's `appId`, which is also the bundle
+  // identifier electron-builder stamps into Info.plist.
+  sealIfNeeded(appPath, context?.packager?.appInfo?.id || 'com.perkyplanner.app')
 }
 
 
