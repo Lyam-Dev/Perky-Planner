@@ -31,7 +31,13 @@ mac:
     - dmg
     - zip
   entitlementsInherit: build/entitlements.mac.plist
-  # CI has no signing certificate; skip codesigning + notarization entirely.
+  # CI has no signing certificate, so electron-builder is told to skip
+  # codesigning. Skipping leaves only the linker's partial signature with no
+  # resource seal, which Squirrel/ShipIt rejects at install time with
+  # "code has no resources but signature indicates they must be present".
+  # `afterSign` re-signs the bundle ad-hoc so the whole app is sealed and the
+  # updater can install it. Set a real "Developer ID Application: ..." identity
+  # here instead to also get proper signing and notarization.
   identity: null
   notarize: false
   # The macOS zip is what electron-updater actually downloads (the .dmg is for
@@ -42,6 +48,15 @@ mac:
   # every install 404s on the download. Pinning one explicit name keeps the
   # artifact and the feed entry identical.
   artifactName: ${name}-${version}-${arch}-mac.${ext}
+# electron-builder is configured with `identity: null` because CI has no
+# certificate, which leaves only the linker's partial signature and no resource
+# seal. Squirrel's ShipIt then refuses the update with "code has no resources
+# but signature indicates they must be present". This hook re-signs the finished
+# bundle ad-hoc ("-"), sealing the whole app so the update installs. It is a
+# no-op once a real signing identity is configured, since that signature is
+# already valid. `afterPack` (not `afterSign`) because electron-builder skips
+# `afterSign` entirely when it did not sign.
+afterPack: scripts/ad-hoc-sign-mac.cjs
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:

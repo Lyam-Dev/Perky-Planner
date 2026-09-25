@@ -81,6 +81,40 @@ for (const { file, exts } of CHANNELS) {
   }
 }
 
+// A mac bundle that does not verify can never be installed by ShipIt, no matter
+// how good the download was, so check the real bundle the zip contains.
+if (present.has('latest-mac.yml')) {
+  const { execFileSync } = require('node:child_process')
+  const os = require('node:os')
+  const zip = fs
+    .readFileSync(path.join(distDir, 'latest-mac.yml'), 'utf8')
+    .match(/^\s*-?\s*url:\s*(.+\.zip)$/m)
+  const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'perky-verify-'))
+  try {
+    if (zip) {
+      execFileSync('unzip', ['-q', path.join(distDir, zip[1].trim()), '-d', staging], { stdio: 'pipe' })
+      const appEntry = fs.readdirSync(staging).find((n) => n.endsWith('.app'))
+      const appDir = appEntry ? path.join(staging, appEntry) : null
+      let valid = false
+      let detail = ''
+      if (appDir) {
+        try {
+          execFileSync('codesign', ['--verify', '--deep', '--strict', appDir], { stdio: 'pipe' })
+          valid = true
+        } catch (error) {
+          detail = String(error.stderr || error.message).trim().split('\n').pop()
+        }
+      } else {
+        detail = 'no .app bundle inside the zip'
+      }
+      check('the mac bundle in the zip passes codesign', valid, true)
+      if (!valid) console.log(`        ${detail}`)
+    }
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true })
+  }
+}
+
 console.log('=== SUMMARY ===')
 console.log(`PASSED ${passed} FAILED ${failed}`)
 process.exit(failed ? 1 : 0)

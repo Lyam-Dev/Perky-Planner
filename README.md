@@ -160,12 +160,27 @@ identical — left to its own defaults electron-builder writes
 manifest, which 404s.
 
 `scripts/verify-update-manifest.cjs` asserts every URL in each channel file
-resolves to a real file, and runs in CI after packaging on every platform. Run it
+resolves to a real file, and that the macOS bundle inside the zip passes
+`codesign --verify`, then runs in CI after packaging on every platform. Run it
 locally after changing any `artifactName`:
 
 ```bash
 node scripts/verify-update-manifest.cjs dist
 ```
+
+#### macOS code signing
+
+CI has no signing certificate, so `mac.identity` is `null` and electron-builder
+skips codesigning. That alone is not enough: it leaves only the linker's partial
+signature, with no sealed resource directory, and Squirrel's ShipIt then refuses
+the update at install time with `code has no resources but signature indicates
+they must be present` — the download succeeds and the install fails.
+
+`scripts/ad-hoc-sign-mac.cjs` runs as `afterPack` and re-signs the bundle ad-hoc
+(`codesign --force --deep --sign -`), which seals the whole app so the update
+installs. Set a real `Developer ID Application: ...` identity in
+`electron-builder.yml` to replace this with proper signing and notarization; the
+hook detects a valid signature and leaves it alone.
 
 ---
 
