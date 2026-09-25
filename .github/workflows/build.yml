@@ -70,6 +70,12 @@ jobs:
         # the dedicated step below attaches the artifacts instead.
         run: npx electron-builder --${{ matrix.platform }} --publish never
 
+      # The updater downloads whatever filename latest*.yml names, so a name
+      # that does not match the built artifact means every install 404s at the
+      # download step. Assert the feed and the files agree before shipping.
+      - name: Verify update manifest matches built artifacts
+        run: node scripts/verify-update-manifest.cjs dist
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -82,6 +88,7 @@ jobs:
             dist/*.deb
             dist/*.rpm
             dist/*.yml
+            dist/*.blockmap
           if-no-files-found: error
 
   # Runs once after every build job finishes, so the GitHub release is created
@@ -123,6 +130,8 @@ jobs:
       # Also attach the electron-updater channel files (latest.yml /
       # latest-mac.yml / latest-linux.yml) — clients fetch these from the
       # release to discover new versions; without them the updater finds nothing.
+      # The *.blockmap files let electron-updater do a differential download;
+      # when absent it still works, but re-downloads the whole installer.
       # (Keep comments outside the literal block: `#` is not a YAML comment
       # inside a block scalar and would be parsed as another glob pattern.)
       - name: Attach binaries to release
@@ -137,4 +146,5 @@ jobs:
             dist/*.deb
             dist/*.rpm
             dist/*.yml
+            dist/*.blockmap
           generate_release_notes: true

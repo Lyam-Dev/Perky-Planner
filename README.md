@@ -149,6 +149,24 @@ git push origin 1.1.0V
 
 The release workflow will automatically build supported platform packages and publish them to GitHub Releases.
 
+#### Auto-update naming
+
+`electron-updater` downloads whatever filename the `latest*.yml` channel file
+names, so a release whose manifest disagrees with its own artifacts makes every
+install fail at the download step. `mac.artifactName` in `electron-builder.yml`
+is pinned to keep the macOS zip and the `url` recorded in `latest-mac.yml`
+identical — left to its own defaults electron-builder writes
+`Perky.Planner-…-mac.zip` to disk but `Perky-Planner-…-mac.zip` into the
+manifest, which 404s.
+
+`scripts/verify-update-manifest.cjs` asserts every URL in each channel file
+resolves to a real file, and runs in CI after packaging on every platform. Run it
+locally after changing any `artifactName`:
+
+```bash
+node scripts/verify-update-manifest.cjs dist
+```
+
 ---
 
 ## Project Structure

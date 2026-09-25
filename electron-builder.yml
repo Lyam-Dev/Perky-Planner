@@ -34,6 +34,14 @@ mac:
   # CI has no signing certificate; skip codesigning + notarization entirely.
   identity: null
   notarize: false
+  # The macOS zip is what electron-updater actually downloads (the .dmg is for
+  # humans), so its file name must match the `url` electron-builder writes into
+  # latest-mac.yml. Left to itself it derives the name from productName
+  # ("Perky Planner" -> "Perky.Planner-1.1.1-arm64-mac.zip") but writes the
+  # dashed form ("Perky-Planner-1.1.1-arm64-mac.zip") into the manifest, so
+  # every install 404s on the download. Pinning one explicit name keeps the
+  # artifact and the feed entry identical.
+  artifactName: ${name}-${version}-${arch}-mac.${ext}
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
